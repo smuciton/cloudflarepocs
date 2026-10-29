@@ -368,3 +368,173 @@ const BLOG = [
     date: "Caso de uso · 5 min"
   }
 ];
+
+// ── Contenido didáctico por producto (páginas de detalle) ─────────────────────
+// diagram.type "flow": fuentes → edge (módulo) → destinos
+// diagram.type "client": navegador → tu sitio → terceros (Page Shield)
+const LEARN = {
+  waf: {
+    analogy: "Es como un guardia en la puerta del club que conoce todas las tácticas de los intrusos: revisa a cada persona que intenta entrar y no deja pasar a nadie sospechoso — y lo hace en milisegundos, sin hacer fila.",
+    how: "Cada petición HTTP/HTTPS pasa por el punto de presencia (PoP) de Cloudflare más cercano antes de tocar tu origen. Ahí el WAF la compara contra los Managed Rulesets (Cloudflare Managed + OWASP Core) y la puntúa con ML mediante el WAF Attack Score. Si coincide con un ataque, se bloquea en el edge: el origen ni se entera.",
+    diagram: {
+      type: "flow",
+      sources: [
+        { icon: "🧑", label: "Usuario legítimo", cls: "good", packet: "GET /" },
+        { icon: "💀", label: "Atacante", cls: "bad", packet: "SQLi · XSS · LFI" }
+      ],
+      module: "WAF",
+      moduleSub: "Managed Rules + Attack Score",
+      targets: [
+        { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
+        { icon: "⛔", label: "Bloqueado · 403", cls: "bad" }
+      ],
+      steps: [
+        { t: "Llegan las peticiones", d: "Usuarios reales y atacantes envían requests al mismo hostname. Desde fuera se ven igual — ambos son solo tráfico HTTP.", on: ["s0", "s1", "e-in0", "e-in1"] },
+        { t: "Todo pasa por el edge", d: "Las peticiones entran al PoP de Cloudflare más cercano al visitante. El tráfico nunca va directo al origen.", on: ["edge"] },
+        { t: "El WAF inspecciona cada petición", d: "Los Managed Rulesets buscan firmas de ataque (SQLi, XSS, rutas sensibles) y el Attack Score puntúa la malicia con ML: 1–20 = ataque.", on: ["mod"] },
+        { t: "Dos destinos posibles", d: "El tráfico limpio continúa al origen sin latencia perceptible. El ataque recibe un 403 con un Ray ID — así lo rastreas en Security Events.", on: ["e-out0", "t0", "e-out1", "t1"] }
+      ]
+    }
+  },
+  bots: {
+    analogy: "Es como el detector de metales del aeropuerto: no detiene a todas las personas — solo a las que traen algo que no deberían. Y a los bots 'buenos' (Googlebot) les da un pase VIP verificado.",
+    how: "Bot Management puntúa cada request de 1 a 99 con machine learning entrenado en toda la red de Cloudflare. Combina esa señal con verified bots (automatización legítima identificada) para que permitas lo bueno y desafíes lo malo — sin captchas para los humanos.",
+    diagram: {
+      type: "flow",
+      sources: [
+        { icon: "🧑", label: "Usuario humano", cls: "good", packet: "score ~90" },
+        { icon: "🤖", label: "Bot malicioso", cls: "bad", packet: "score ~5" }
+      ],
+      module: "Bot Mgmt",
+      moduleSub: "Bot Score ML + Verified Bots",
+      targets: [
+        { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
+        { icon: "🧩", label: "Challenge / Block", cls: "bad" }
+      ],
+      steps: [
+        { t: "Llegan humanos y bots", d: "Humanos navegando y bots automatizados (scrapers, credential stuffing) golpean el mismo endpoint.", on: ["s0", "s1", "e-in0", "e-in1"] },
+        { t: "El edge puntúa cada request", d: "Bot Score de 1 a 99 por request, calculado con ML sobre comportamiento, fingerprints (JA3/JA4) y señales del navegador.", on: ["edge", "mod"] },
+        { t: "Se decide la acción", d: "Regla típica: score < 30 y no es verified bot → managed challenge o block. Los verified bots pasan siempre.", on: ["mod"] },
+        { t: "Humanos pasan, bots se frenan", d: "El humano ni se entera. El bot recibe un Turnstile/challenge que casi ninguna automatización resuelve.", on: ["e-out0", "t0", "e-out1", "t1"] }
+      ]
+    }
+  },
+  api: {
+    analogy: "Es como un contrato notariado: si la petición no está literalmente escrita en el acuerdo (tu esquema OpenAPI), ni siquiera se considera — se rechaza en la puerta.",
+    how: "API Shield descubre tus endpoints reales observando el tráfico, subes tu esquema OpenAPI v3 y a partir de ahí opera un modelo de seguridad positiva: solo pasa lo que la API declara. Sequence Analytics aprende el orden esperado de llamadas y mTLS autentica clientes por certificado.",
+    diagram: {
+      type: "flow",
+      sources: [
+        { icon: "📱", label: "Cliente API válido", cls: "good", packet: "POST /v1/pay" },
+        { icon: "🕳️", label: "Request inválido", cls: "bad", packet: "GET /v1/../../" }
+      ],
+      module: "API Shield",
+      moduleSub: "Schema Validation + mTLS",
+      targets: [
+        { icon: "🖥️", label: "API de Origen", cls: "good" },
+        { icon: "⛔", label: "Rechazado · 400/403", cls: "bad" }
+      ],
+      steps: [
+        { t: "Llegan llamadas a la API", d: "Clientes válidos y tráfico anómalo (fuera de contrato, shadow endpoints, fuzzing) llegan al mismo hostname.", on: ["s0", "s1", "e-in0", "e-in1"] },
+        { t: "El edge conoce tu esquema", d: "Endpoint Discovery ya mapeó tus rutas reales; el esquema OpenAPI define método, parámetros y tipos permitidos.", on: ["edge", "mod"] },
+        { t: "Validación positiva", d: "Schema Validation rechaza lo no declarado; Sequence Analytics detecta orden anómalo de llamadas; mTLS exige certificado de cliente.", on: ["mod"] },
+        { t: "Solo contratos válidos pasan", d: "La llamada que cumple el esquema llega al origen. La inválida se rechaza con 400/403 antes de tocar tu código.", on: ["e-out0", "t0", "e-out1", "t1"] }
+      ]
+    }
+  },
+  ddos: {
+    analogy: "Es como un muro de contención infinito: el tsunami no golpea una sola muralla — golpea cientos a la vez, en el borde de la red, y ninguna se desborda.",
+    how: "La mitigación DDoS es autónoma y always-on: cada PoP de Cloudflare detecta y absorbe ataques L3/L4/L7 sin configuración ni ventanas de exposición. La capacidad agregada de la red supera los mayores ataques registrados, y no hay cobro por tráfico mitigado.",
+    diagram: {
+      type: "flow",
+      sources: [
+        { icon: "👥", label: "Usuarios reales", cls: "good", packet: "tráfico normal" },
+        { icon: "🌊", label: "Botnet DDoS", cls: "bad", packet: "millones de req/s" }
+      ],
+      module: "DDoS",
+      moduleSub: "Mitigación autónoma L3/L4/L7",
+      targets: [
+        { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
+        { icon: "🕳️", label: "Absorbido en el edge", cls: "bad" }
+      ],
+      steps: [
+        { t: "Estalla el ataque", d: "Una botnet lanza un volumen masivo de peticiones mientras usuarios legítimos intentan usar el servicio.", on: ["s0", "s1", "e-in0", "e-in1"] },
+        { t: "Anycast distribuye el golpe", d: "El ataque se reparte entre todos los PoPs de la red — ningún punto concentra el volumen completo.", on: ["edge"] },
+        { t: "Mitigación autónoma", d: "El edge clasifica el tráfico en tiempo real y descarta el ataque sin intervención humana ni reglas manuales.", on: ["mod"] },
+        { t: "El origen ni se entera", d: "Solo el tráfico legítimo llega al servidor. El ataque quedó absorbido en el edge — el servicio sigue en línea.", on: ["e-out0", "t0", "e-out1", "t1"] }
+      ]
+    }
+  },
+  ratelimit: {
+    analogy: "Es como la fila de una taquilla: cada persona puede comprar un número limitado de boletos por minuto. Quien intenta comprar de más, simplemente espera fuera.",
+    how: "Rate Limiting cuenta peticiones por las características que definas — IP, sesión, ASN, JA3/JA4, header — y aplica la acción configurada (block, challenge, log) cuando se supera el umbral. Es la herramienta contra fuerza bruta, abuso de API y scraping agresivo.",
+    diagram: {
+      type: "flow",
+      sources: [
+        { icon: "🧑", label: "Usuario normal", cls: "good", packet: "2 req/s" },
+        { icon: "🔁", label: "Script abusivo", cls: "bad", packet: "500 req/s" }
+      ],
+      module: "Rate Limit",
+      moduleSub: "Contadores por IP/sesión/JA4",
+      targets: [
+        { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
+        { icon: "⏱️", label: "429 · Límite", cls: "bad" }
+      ],
+      steps: [
+        { t: "Llegan peticiones a distinto ritmo", d: "Un usuario normal hace 2 req/s; un script abusivo dispara 500 req/s contra el login.", on: ["s0", "s1", "e-in0", "e-in1"] },
+        { t: "El edge cuenta", d: "Cada regla mantiene contadores por la característica elegida — no solo IP: también sesión, fingerprint o header.", on: ["edge", "mod"] },
+        { t: "Umbral excedido → acción", d: "Al pasar el límite en el periodo, se aplica la acción: block, managed challenge o solo log.", on: ["mod"] },
+        { t: "El servicio se protege", d: "El usuario normal sigue sin notar nada; el abusivo recibe 429. Contra bots que rotan IPs existe complexity-based counting.", on: ["e-out0", "t0", "e-out1", "t1"] }
+      ]
+    }
+  },
+  pageshield: {
+    analogy: "Es como el circuito de cámaras dentro de tu tienda: el WAF vigila la puerta, pero Page Shield vigila lo que pasa adentro — lo que hacen los 'empleados' (scripts de terceros) una vez que ya entraron.",
+    how: "Tu página carga scripts de terceros (analytics, chat, ads) directo en el navegador del cliente — donde el WAF no puede ver. Page Shield inventaría cada script y conexión saliente, detecta comportamiento tipo Magecart (skimming de datos) y te permite bloquear scripts comprometidos.",
+    diagram: {
+      type: "client",
+      nodes: [
+        { id: "browser", x: 95, y: 150, icon: "🧑‍💻", label: "Navegador del visitante", cls: "good" },
+        { id: "site", kind: "edge", x: 275, y: 55, w: 190, h: 190, label: "TU SITIO (CHECKOUT)" },
+        { id: "mod", kind: "mod", x: 290, y: 90, w: 160, h: 58, label: "Page Shield", cls: "mod" },
+        { id: "scripts", kind: "mod", x: 290, y: 158, w: 160, h: 58, label: "Scripts 3ros", sub: "analytics · chat · ads", cls: "warn" },
+        { id: "cdn", x: 595, y: 85, icon: "✅", label: "CDN / terceros OK", cls: "good" },
+        { id: "evil", x: 595, y: 215, icon: "🕳️", label: "Servidor atacante", cls: "bad" }
+      ],
+      edges: [
+        { id: "e-load", from: "browser", to: "site", cls: "good", label: "carga página" },
+        { id: "e-cdn", from: "site", to: "cdn", cls: "good", label: "scripts válidos" },
+        { id: "e-exfil", from: "site", to: "evil", cls: "bad", label: "exfil de datos" }
+      ],
+      steps: [
+        { t: "El visitante carga tu checkout", d: "El navegador descarga la página y todo lo que la página le dice que cargue — incluidos scripts de terceros.", on: ["browser", "e-load", "site"] },
+        { t: "Entran scripts que no son tuyos", d: "Analytics, chat, ads… cada uno se ejecuta con acceso total a lo que el usuario teclea — incluida la tarjeta.", on: ["scripts"] },
+        { t: "Page Shield inventaría y vigila", d: "Registra cada script activo, de dónde vino y a qué destinos envía datos. Alerta ante cambios o comportamiento de skimming.", on: ["mod"] },
+        { t: "La exfiltración se detecta", d: "Si un script comprometido intenta mandar datos a un servidor extraño, Page Shield lo marca — con policies puedes bloquearlo.", on: ["e-exfil", "evil", "e-cdn", "cdn"] }
+      ]
+    }
+  },
+  ssl: {
+    analogy: "Es como mandar una carta dentro de una caja fuerte en vez de una postal: cualquiera que la intercepte en el camino solo ve metal — el contenido solo lo abre quien tiene la llave.",
+    how: "Cloudflare emite y renueva certificados automáticamente (Universal SSL), así que el HTTPS deja de ser una tarea operativa. El modo de cifrado define cuánto del camino va protegido: con Full (Strict) el canal queda cifrado de extremo a extremo, validando también el certificado del origen.",
+    diagram: {
+      type: "flow",
+      sources: [
+        { icon: "🌐", label: "Navegador", cls: "good", packet: "HTTPS request" },
+        { icon: "🕵️", label: "Espía (MITM)", cls: "bad", packet: "intercepta" }
+      ],
+      module: "SSL/TLS",
+      moduleSub: "Universal SSL · Full (Strict)",
+      targets: [
+        { icon: "🖥️", label: "Origen cifrado", cls: "good" },
+        { icon: "🔒", label: "Solo ve ruido", cls: "bad" }
+      ],
+      steps: [
+        { t: "El cliente inicia la conexión", d: "El navegador pide HTTPS. En el camino puede haber alguien intentando interceptar (MITM).", on: ["s0", "s1", "e-in0", "e-in1"] },
+        { t: "El edge presenta el certificado", d: "Universal SSL emite y renueva el cert automáticamente — cero operación manual, cero caducados olvidados.", on: ["edge", "mod"] },
+        { t: "Full (Strict) valida ambos extremos", d: "El modo Strict exige cert válido de CA también en el origen. Flexible deja un tramo en claro: nunca lo uses en producción.", on: ["mod"] },
+        { t: "Cifrado extremo a extremo", d: "El navegador y el origen hablan en claro solo entre ellos; el espía en medio solo ve texto cifrado ilegible.", on: ["e-out0", "t0", "e-out1", "t1"] }
+      ]
+    }
+  }
+};

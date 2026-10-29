@@ -72,7 +72,7 @@ function renderSidebar() {
             <span class="chev">▶</span>
           </button>
           <div class="section-body">
-            ${p.objectives.map((o, i) => `<a href="#/portafolio/${p.id}">${i + 1}. ${o}</a>`).join("")}
+            ${p.objectives.map((o, i) => `<a href="#/producto/${p.id}">${i + 1}. ${o}</a>`).join("")}
           </div>
         </div>`).join("")}
     </div>`;
@@ -98,7 +98,7 @@ function setAllSections(open) {
 // ── Command palette (⌘K) ────────────────────────────────────────────────────
 function paletteItems() {
   const items = [
-    ...PRODUCTS.map(p => ({ label: `${p.num} ${p.name}`, hint: p.tagline, type: "producto", go: `portafolio/${p.id}` })),
+    ...PRODUCTS.map(p => ({ label: `${p.num} ${p.name}`, hint: p.tagline, type: "producto", go: `producto/${p.id}` })),
     ...LABS.map(l => ({ label: l.title, hint: l.goal, type: "lab", go: `labs/${l.id}` })),
     ...FLASHCARDS.map(f => ({ label: f.q, hint: f.a.slice(0, 60) + "…", type: "flashcard", go: "flashcards" })),
     { label: "Practice Quiz", hint: "Preguntas estilo examen", type: "quiz", go: "quiz" },
@@ -172,7 +172,7 @@ function viewInicio() {
     <div class="section-title">Dominios · Application Security</div>
     <div class="grid grid-2">
       ${PRODUCTS.map(p => `
-        <div class="card clickable card-accent-top" style="--accent:${p.accent}" onclick="location.hash='#/portafolio/${p.id}'">
+        <div class="card clickable card-accent-top" style="--accent:${p.accent}" onclick="location.hash='#/producto/${p.id}'">
           <div class="card-kicker" style="--accent:${p.accent}">${p.num} · ${p.weight}% peso</div>
           <h3>${p.name}</h3>
           <p>${p.tagline}</p>
@@ -208,6 +208,7 @@ function viewPortafolio(focusId) {
           <div class="muted" style="margin-bottom:6px"><strong style="color:var(--text)">Resuelve:</strong> ${p.solves}</div>
           ${p.objectives.map(o => `<div class="objective">${o}</div>`).join("")}
           <div class="pitch">“${p.pitch}”</div>
+          <a class="btn btn-sm" href="#/producto/${p.id}" style="margin-top:14px;display:inline-block">Explorar demo interactiva →</a>
         </div>
       </div>`).join("")}`;
 }
@@ -409,6 +410,121 @@ function viewPruebas() {
     </div>`;
 }
 
+// ── Diagramas interactivos ───────────────────────────────────────────────────
+function flowSpec(d) {
+  const sy = d.sources.length === 1 ? [150] : [82, 218];
+  const ty = d.targets.length === 1 ? [150] : [82, 218];
+  const nodes = [
+    ...d.sources.map((s, i) => ({ id: `s${i}`, x: 95, y: sy[i], icon: s.icon, label: s.label, sub: s.packet, cls: s.cls })),
+    { id: "edge", kind: "edge", x: 280, y: 50, w: 190, h: 200, label: "CLOUDFLARE EDGE" },
+    { id: "mod", kind: "mod", x: 295, y: 95, w: 160, h: 110, label: d.module, sub: d.moduleSub, cls: "mod" },
+    ...d.targets.map((t, i) => ({ id: `t${i}`, x: 595, y: ty[i], icon: t.icon, label: t.label, cls: t.cls }))
+  ];
+  const inY = d.sources.length === 1 ? [150] : [140, 168];
+  const outY = d.targets.length === 1 ? [150] : [140, 168];
+  const edges = [
+    ...d.sources.map((s, i) => ({ id: `e-in${i}`, x1: 128, y1: sy[i], x2: 292, y2: inY[i], cls: s.cls, label: s.packet })),
+    ...d.targets.map((t, i) => ({ id: `e-out${i}`, x1: 458, y1: outY[i], x2: 562, y2: ty[i], cls: t.cls }))
+  ];
+  return { nodes, edges };
+}
+
+function clientSpec(d) {
+  const at = id => d.nodes.find(n => n.id === id);
+  const anchor = n => n.kind ? { x: n.x + n.w / 2, y: n.y + n.h / 2 } : { x: n.x, y: n.y };
+  const edges = d.edges.map(e => {
+    const a = anchor(at(e.from)), b = anchor(at(e.to));
+    const dir = b.x > a.x ? 1 : -1;
+    return { id: e.id, x1: a.x + 34 * dir, y1: a.y, x2: b.x - (at(e.to).kind ? at(e.to).w / 2 + 4 : 34) * 1, y2: b.y, cls: e.cls, label: e.label };
+  });
+  return { nodes: d.nodes, edges };
+}
+
+function buildDiagram(spec) {
+  const { nodes, edges } = spec.type === "client" ? clientSpec(spec) : flowSpec(spec);
+  const svg = [];
+  svg.push(`<svg class="diagram" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">`);
+  for (const e of edges) {
+    const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
+    svg.push(`<path data-did="${e.id}" class="d-edge ${e.cls}" d="M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}"/>`);
+    if (e.label) svg.push(`<text data-did="${e.id}" class="d-elabel ${e.cls}" x="${mx}" y="${my - 8}" text-anchor="middle">${e.label}</text>`);
+  }
+  for (const n of nodes) {
+    if (n.kind === "edge") {
+      svg.push(`<rect data-did="${n.id}" class="d-edgebox" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="12"/>
+        <text class="d-edgetitle" x="${n.x + n.w / 2}" y="${n.y + 18}" text-anchor="middle">${n.label}</text>`);
+    } else if (n.kind === "mod") {
+      svg.push(`<rect data-did="${n.id}" class="d-mod ${n.cls || ""}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10"/>
+        <text class="d-modtitle" x="${n.x + n.w / 2}" y="${n.y + (n.sub ? 30 : 34)}" text-anchor="middle">${n.label}</text>
+        ${n.sub ? `<text class="d-modsub" x="${n.x + n.w / 2}" y="${n.y + 48}" text-anchor="middle">${n.sub}</text>` : ""}`);
+    } else {
+      svg.push(`<g data-did="${n.id}" class="d-node ${n.cls}">
+          <circle cx="${n.x}" cy="${n.y}" r="30"/>
+          <text class="d-icon" x="${n.x}" y="${n.y + 8}" text-anchor="middle">${n.icon}</text>
+          <text class="d-nlabel" x="${n.x}" y="${n.y + 50}" text-anchor="middle">${n.label}</text>
+          ${n.sub ? `<text class="d-nsub" x="${n.x}" y="${n.y + 64}" text-anchor="middle">${n.sub}</text>` : ""}
+        </g>`);
+    }
+  }
+  svg.push(`</svg>`);
+  return svg.join("");
+}
+
+function viewProducto(id) {
+  const p = PRODUCTS.find(x => x.id === id);
+  if (!p || !LEARN[id]) return viewPortafolio();
+  const L = LEARN[id];
+  const step = state.diagram?.product === id ? state.diagram.step : 0;
+  return `
+    <a class="muted" href="#/portafolio" style="text-decoration:none">← Portafolio</a>
+    <div class="product-page">
+      <div class="product-info">
+        <div class="card-kicker" style="--accent:${p.accent}">${p.num} · Application Security</div>
+        <h2 class="page-title">${p.name}</h2>
+        <p class="page-sub" style="margin-bottom:18px">${p.tagline}</p>
+        <h4 class="learn-h">Visión General</h4>
+        <p class="muted">${p.desc} ${p.solves}</p>
+        <h4 class="learn-h">Cómo Funciona</h4>
+        <p class="muted">${L.how}</p>
+        <div class="analogy"><span class="analogy-icon">💡</span><div><strong>Piénsalo así</strong><p>${L.analogy}</p></div></div>
+        <h4 class="learn-h">Objetivos</h4>
+        ${p.objectives.map(o => `<div class="objective" style="--accent:${p.accent}">${o}</div>`).join("")}
+        <div class="pitch" style="--accent:${p.accent}">“${p.pitch}”</div>
+      </div>
+      <div class="product-diagram">
+        <div class="card" style="--accent:${p.accent}">
+          <div class="card-kicker">Diagrama interactivo</div>
+          ${buildDiagram(L.diagram)}
+          <div class="step-caption" id="step-caption"></div>
+          <div class="step-controls">
+            <button class="btn btn-sm" id="step-prev">←</button>
+            <div class="step-dots" id="step-dots">
+              ${L.diagram.steps.map((s, i) => `<button class="step-dot" data-step="${i}">${i + 1}</button>`).join("")}
+            </div>
+            <button class="btn btn-sm" id="step-next">→</button>
+            <button class="btn btn-sm" id="step-play">▶ Auto</button>
+          </div>
+          <div class="diagram-legend">
+            <span><i class="lg good"></i> Tráfico legítimo</span>
+            <span><i class="lg bad"></i> Ataque / bloqueado</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function setDiagramStep(i) {
+  const [r, id] = route();
+  const L = LEARN[id];
+  if (!L) return;
+  const n = L.diagram.steps.length;
+  state.diagram = { product: id, step: (i + n) % n };
+  const s = L.diagram.steps[state.diagram.step];
+  $$("#view [data-did]").forEach(el => el.classList.toggle("on", s.on.includes(el.dataset.did)));
+  $$(".step-dot").forEach((d, j) => d.classList.toggle("on", j === state.diagram.step));
+  $("#step-caption").innerHTML = `<strong>${state.diagram.step + 1}. ${s.t}</strong><p>${s.d}</p>`;
+}
+
 // ── Render + event wiring ────────────────────────────────────────────────────
 function markActiveNav() {
   const [r] = route();
@@ -418,18 +534,31 @@ function markActiveNav() {
 function render() {
   const [r, arg] = route();
   const view = $("#view");
-  const views = { inicio: viewInicio, portafolio: viewPortafolio, flashcards: viewFlashcards, quiz: viewQuiz, labs: viewLabs, progreso: viewProgreso, pruebas: viewPruebas };
+  const views = { inicio: viewInicio, portafolio: viewPortafolio, flashcards: viewFlashcards, quiz: viewQuiz, labs: viewLabs, progreso: viewProgreso, pruebas: viewPruebas, producto: viewProducto };
   view.innerHTML = views[r] ? views[r](arg) : viewInicio();
   markActiveNav();
+  if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; }
   wire(r, arg);
   if (r === "portafolio" && arg) $("#p-" + arg)?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (r === "labs" && arg) $("#" + arg)?.scrollIntoView({ behavior: "smooth", block: "start" });
   window.scrollTo({ top: 0 });
 }
 
-function wire(r) {
+function wire(r, arg) {
   if (r === "portafolio") {
     $$(".product-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
+  }
+
+  if (r === "producto") {
+    const step = state.diagram?.product === arg ? state.diagram.step : 0;
+    setDiagramStep(step);
+    $("#step-prev").addEventListener("click", () => setDiagramStep(state.diagram.step - 1));
+    $("#step-next").addEventListener("click", () => setDiagramStep(state.diagram.step + 1));
+    $$(".step-dot").forEach(d => d.addEventListener("click", () => setDiagramStep(+d.dataset.step)));
+    $("#step-play").addEventListener("click", function () {
+      if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; this.textContent = "▶ Auto"; }
+      else { state.diagramTimer = setInterval(() => setDiagramStep(state.diagram.step + 1), 2800); this.textContent = "⏸ Pausa"; }
+    });
   }
   if (r === "flashcards") {
     const flip = () => { state.flash.flipped = !state.flash.flipped; $("#flashcard").classList.toggle("flipped", state.flash.flipped); };
