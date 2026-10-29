@@ -382,7 +382,6 @@ const LEARN = {
         { icon: "🧑", label: "Usuario legítimo", cls: "good", packet: "GET /" },
         { icon: "💀", label: "Atacante", cls: "bad", packet: "SQLi · XSS · LFI" }
       ],
-      premod: { label: "ML Engine", sub: "Request Scoring" },
       module: "WAF",
       moduleSub: "Attack Score > Threshold",
       targets: [
@@ -392,7 +391,7 @@ const LEARN = {
       steps: [
         { t: "Llegan las peticiones", d: "Usuarios reales y atacantes envían requests al mismo hostname. Desde fuera se ven igual — ambos son solo tráfico HTTP.", on: ["s0", "s1", "e-in0", "e-in1"] },
         { t: "Todo pasa por el edge", d: "Las peticiones entran al PoP de Cloudflare más cercano al visitante. El tráfico nunca va directo al origen.", on: ["edge", "dc", "e-dc"] },
-        { t: "El WAF inspecciona cada petición", d: "Los Managed Rulesets buscan firmas de ataque (SQLi, XSS, rutas sensibles) y el Attack Score puntúa la malicia con ML: 1–20 = ataque.", on: ["e-dc", "premod", "e-mm", "mod"] },
+        { t: "El WAF inspecciona cada petición", d: "Los Managed Rulesets buscan firmas de ataque (SQLi, XSS, rutas sensibles) y el Attack Score puntúa la malicia con ML: 1–20 = ataque.", on: ["e-dc", "mod"] },
         { t: "Dos destinos posibles", d: "El tráfico limpio continúa al origen sin latencia perceptible. El ataque recibe un 403 con un Ray ID — así lo rastreas en Security Events.", on: ["e-out0", "chk", "t0", "e-out1", "t1"] }
       ]
     }
