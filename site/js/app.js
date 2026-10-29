@@ -78,7 +78,7 @@ function renderSidebar() {
     ${SOON_PORTFOLIOS.map(s => `
     <div class="side-label">${s.title}</div>
     ${s.items.map((it, i) => `
-    <div class="section section-soon" data-section="${s.id}-${it.slug}">
+    <div class="section section-soon ${openSections.has(`${s.id}-${it.slug}`) ? "open" : ""}" data-section="${s.id}-${it.slug}">
       <button class="section-head">
         <span class="num" style="color:${s.accent}">${i + 1}.0</span>
         <span>${it.name}</span>
@@ -105,8 +105,10 @@ function renderSidebar() {
 }
 
 function setAllSections(open) {
-  $$("#sections .section").forEach(s => s.classList.toggle("open", open));
-  store.set("poc_open_sections", open ? PRODUCTS.map(p => p.id) : []);
+  $$("#sidebar .section").forEach(s => s.classList.toggle("open", open));
+  store.set("poc_open_sections", open
+    ? [...PRODUCTS.map(p => p.id), ...SOON_PORTFOLIOS.flatMap(s => s.items.map(it => `${s.id}-${it.slug}`))]
+    : []);
 }
 
 // ── Command palette (⌘K) ────────────────────────────────────────────────────
