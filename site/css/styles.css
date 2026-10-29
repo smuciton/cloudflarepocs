@@ -781,3 +781,35 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 
 /* Las secciones dentro del sidebar flex no deben encogerse */
 .sidebar > * { flex-shrink: 0; }
+
+/* ---------- Features expandibles (página de producto) ---------- */
+.features { display: flex; flex-direction: column; gap: 8px; margin-bottom: 6px; }
+.feature-item {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent, var(--orange));
+  border-radius: 8px;
+  background: var(--card);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.feature-item:hover { border-color: var(--accent, var(--orange)); }
+.feature-head {
+  width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  background: none; border: none;
+  padding: 11px 14px;
+  cursor: pointer; text-align: left;
+}
+.feature-ic { font-size: 17px; }
+.feature-name {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 14px; font-weight: 600;
+  color: var(--text);
+}
+.feature-head .chev { color: var(--text-faint); font-size: 11px; transition: transform 0.2s; }
+.feature-item.open .feature-head .chev { transform: rotate(90deg); }
+.feature-body { display: none; padding: 0 14px 13px 41px; }
+.feature-item.open .feature-body { display: block; }
+.feature-blurb { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.feature-detail { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; }

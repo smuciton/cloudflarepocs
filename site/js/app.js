@@ -656,6 +656,22 @@ function viewProducto(id) {
         <p class="muted">${p.desc} ${p.solves}</p>
         <h4 class="learn-h">Cómo Funciona</h4>
         <p class="muted">${L.how}</p>
+        ${L.features ? `
+        <h4 class="learn-h">Funcionalidades clave</h4>
+        <div class="features">
+          ${L.features.map((f, i) => `
+          <div class="feature-item" data-f="${i}">
+            <button class="feature-head">
+              <span class="feature-ic">${f.icon}</span>
+              <span class="feature-name">${f.name}</span>
+              <span class="chev">▶</span>
+            </button>
+            <div class="feature-body">
+              <p class="feature-blurb">${f.blurb}</p>
+              <p class="feature-detail">${f.detail}</p>
+            </div>
+          </div>`).join("")}
+        </div>` : ""}
         <div class="analogy"><span class="analogy-icon">💡</span><div><strong>Piénsalo así</strong><p>${L.analogy}</p></div></div>
         <h4 class="learn-h">Objetivos</h4>
         ${p.objectives.map(o => `<div class="objective" style="--accent:${p.accent}">${o}</div>`).join("")}
@@ -835,6 +851,7 @@ function wire(r, arg) {
   if (PORTFOLIOS[r] && PRODUCTS.find(p => p.id === arg)) {
     const step = state.diagram?.product === arg ? state.diagram.step : 0;
     setDiagramStep(step);
+    $$(".feature-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
   }
   if (r === "flashcards") {
     const flip = () => { state.flash.flipped = !state.flash.flipped; $("#flashcard").classList.toggle("flipped", state.flash.flipped); };

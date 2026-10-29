@@ -479,6 +479,18 @@ const BLOG = [
 // diagram.type "client": navegador → tu sitio → terceros (Page Shield)
 const LEARN = {
   waf: {
+    features: [
+      { icon: "🎯", name: "WAF Custom Rules", blurb: "Reglas a tu medida con expresiones sobre cualquier campo del request.",
+        detail: "Escribes condiciones sobre IP, URI, método, headers, cookies, ASN, geografía, JA3/JA4, Bot Score o Attack Score — y aplicas acción: block, challenge (Turnstile/JS), skip o log. Ideal para cerrar endpoints por país, frenar scrapers por fingerprint o excluir tráfico interno." },
+      { icon: "⏱️", name: "Rate Limiting Rules", blurb: "Cuenta peticiones por característica y actúa al superar el umbral.",
+        detail: "Contadores por IP, sesión, ASN, header o fingerprint en ventanas configurables. Contra fuerza bruta en login, abuso de API y scraping: acciones block, managed challenge o log. Complexity-based counting frena bots que rotan IPs." },
+      { icon: "📤", name: "Response Rules", blurb: "Personaliza la respuesta de bloqueo que ve el usuario.",
+        detail: "Define código de estado, content-type y cuerpo de la respuesta de bloqueo — HTML con tu marca o JSON consistente para clientes de API, en vez de la página genérica. Útil para que el bloqueo 'hable el idioma' de tu app." },
+      { icon: "🛡️", name: "WAF Managed Ruleset", blurb: "Reglas escritas y mantenidas por Cloudflare contra exploits conocidos.",
+        detail: "Cubierto por el equipo de seguridad de Cloudflare: se actualiza ante cada nuevo exploit (zero-days incluidos, a veces en horas). Cubre ataques genéricos, inyección, anomalías HTTP y rutas sensibles como /.env o wp-admin." },
+      { icon: "📚", name: "WAF Core (OWASP) Ruleset", blurb: "La implementación Cloudflare del OWASP ModSecurity Core Rule Set.",
+        detail: "El estándar de la industria contra el OWASP Top 10: cada regla aporta a un score de anomalía (paranoia levels) que tú calibras para balancear protección vs. falsos positivos. Excelente base antes de tus custom rules." }
+    ],
     analogy: "Es como un guardia en la puerta del club que conoce todas las tácticas de los intrusos: revisa a cada persona que intenta entrar y no deja pasar a nadie sospechoso — y lo hace en milisegundos, sin hacer fila.",
     how: "Cada petición HTTP/HTTPS pasa por el punto de presencia (PoP) de Cloudflare más cercano antes de tocar tu origen. Ahí el WAF la compara contra los Managed Rulesets (Cloudflare Managed + OWASP Core) y la puntúa con ML mediante el WAF Attack Score. Si coincide con un ataque, se bloquea en el edge: el origen ni se entera.",
     diagram: {
