@@ -40,8 +40,8 @@ function renderSidebar() {
   const sb = $("#sidebar");
   sb.innerHTML = `
     <div class="brand">
-      <div class="brand-title">Cloudflare PoC Hub</div>
-      <div class="brand-sub">Application Security</div>
+      <div class="brand-title">Cloudflare Portafolio Guide</div>
+      <div class="brand-sub">Training · Hands-on Labs</div>
     </div>
     <div class="searchbox" id="search-open">
       <span style="color:var(--text-faint)">⌕</span>
@@ -566,6 +566,16 @@ async function runTest() {
   $("#test-kind").dispatchEvent(new Event("change"));
 }
 
+function renderTopbar() {
+  $("#topbar").innerHTML = `
+    <div>
+      <h1>Cloudflare Portafolio Guide</h1>
+      <div class="sub">Training del portafolio de Application Security · estudia, practica y demuestra en vivo</div>
+    </div>
+    <button class="btn btn-ghost" onclick="alert('Sign In — placeholder. El sitio se protegerá con Cloudflare Access a nivel de red.')">Sign In</button>`;
+}
+
 // ── Boot ─────────────────────────────────────────────────────────────────────
 renderSidebar();
+renderTopbar();
 render();
