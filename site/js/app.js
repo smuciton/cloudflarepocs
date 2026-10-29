@@ -553,9 +553,9 @@ function pfTile(id, x, y) {
 
 function buildPfDiagram() {
   const rows = [
-    { label: "BORDE DE RED · L3/L4/L7", ids: ["ddos", "ratelimit"] },
-    { label: "APLICACIÓN · L7", ids: ["waf", "bots", "api"] },
-    { label: "CLIENTE Y CANAL", ids: ["pageshield", "ssl"] }
+    { label: "PROTEGE TU INFRAESTRUCTURA", ids: ["ddos", "ratelimit"] },
+    { label: "PROTEGE TUS APLICACIONES", ids: ["waf", "bots", "api"] },
+    { label: "PROTEGE A TUS USUARIOS", ids: ["pageshield", "ssl"] }
   ];
   const s = [`<svg class="diagram" viewBox="0 0 780 430" xmlns="http://www.w3.org/2000/svg">`];
   s.push(`<rect class="d-bg" x="0" y="0" width="780" height="430" rx="14"/>`);
