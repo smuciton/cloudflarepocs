@@ -778,3 +778,6 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Las secciones dentro del sidebar flex no deben encogerse */
+.sidebar > * { flex-shrink: 0; }
