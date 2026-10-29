@@ -82,8 +82,7 @@ function renderSidebar() {
       <button class="section-head">
         <span class="num" style="color:${s.accent}">${i + 1}.0</span>
         <span>${it.name}</span>
-        <span class="obj-count">${it.objectives.length} objetivos</span>
-        <span class="soon-pill">en progreso</span>
+        <span class="obj-count soon-count">en progreso</span>
         <span class="chev">▶</span>
       </button>
       <div class="section-body">

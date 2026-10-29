@@ -763,3 +763,18 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .soon-card p { color: var(--text-faint) !important; }
 
 .soon-item { cursor: pointer; opacity: 0.7; }
+
+/* ---------- Secciones hands-on "en progreso" ---------- */
+.section-soon { border-style: dashed; }
+.section-soon .soon-count {
+  color: var(--amber);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 9.5px;
+}
+.section-soon .section-head span:nth-child(2) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
