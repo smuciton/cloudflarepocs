@@ -142,7 +142,7 @@ function movePaletteSel(d) {
 document.addEventListener("keydown", e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); openPalette(); }
   const ov = $("#palette");
-  if (e.key === "Escape") { closePalette(); return; }
+  if (e.key === "Escape") { closePalette(); closeDiagramModal(); return; }
   if (ov.hidden) return;
   if (e.key === "ArrowDown") { e.preventDefault(); movePaletteSel(1); }
   if (e.key === "ArrowUp") { e.preventDefault(); movePaletteSel(-1); }
@@ -495,15 +495,8 @@ function viewProducto(id) {
         <div class="card" style="--accent:${p.accent}">
           <div class="card-kicker">Diagrama interactivo</div>
           ${buildDiagram(L.diagram)}
-          <div class="step-caption" id="step-caption"></div>
-          <div class="step-controls">
-            <button class="btn btn-sm" id="step-prev">←</button>
-            <div class="step-dots" id="step-dots">
-              ${L.diagram.steps.map((s, i) => `<button class="step-dot" data-step="${i}">${i + 1}</button>`).join("")}
-            </div>
-            <button class="btn btn-sm" id="step-next">→</button>
-            <button class="btn btn-sm" id="step-play">▶ Auto</button>
-          </div>
+          <div class="step-caption"></div>
+          ${diagramControlsHTML(L.diagram.steps.length)}
           <div class="diagram-legend">
             <span><i class="lg good"></i> Tráfico legítimo</span>
             <span><i class="lg bad"></i> Ataque / bloqueado</span>
@@ -513,6 +506,47 @@ function viewProducto(id) {
     </div>`;
 }
 
+function diagramControlsHTML(n, zoom = true) {
+  return `<div class="step-controls">
+    <button class="btn btn-sm" data-step-act="prev">←</button>
+    <div class="step-dots">${Array.from({ length: n }, (_, i) => `<button class="step-dot" data-step-act="step" data-step="${i}">${i + 1}</button>`).join("")}</div>
+    <button class="btn btn-sm" data-step-act="next">→</button>
+    <button class="btn btn-sm" data-step-act="play">▶ Auto</button>
+    ${zoom ? `<button class="btn btn-sm" data-step-act="zoom">⛶ Ampliar</button>` : ""}
+  </div>`;
+}
+
+const SVGNS = "http://www.w3.org/2000/svg";
+
+function spawnPackets(svg) {
+  svg.querySelectorAll(".d-packet, .d-burst").forEach(el => el.remove());
+  svg.querySelectorAll(".d-edge.on").forEach(edge => {
+    const d = edge.getAttribute("d");
+    const bad = edge.classList.contains("bad");
+    const pkt = document.createElementNS(SVGNS, "circle");
+    pkt.setAttribute("r", "5");
+    pkt.setAttribute("class", `d-packet ${bad ? "bad" : "good"}`);
+    const am = document.createElementNS(SVGNS, "animateMotion");
+    am.setAttribute("dur", "1.4s");
+    am.setAttribute("repeatCount", "indefinite");
+    am.setAttribute("path", d);
+    pkt.appendChild(am);
+    svg.appendChild(pkt);
+    if (bad) {
+      const m = d.match(/M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)/);
+      if (m) {
+        const id = edge.dataset.did || "";
+        const bx = id.includes("-in") ? +m[3] : id.includes("-out") ? +m[1] : (+m[1] + +m[3]) / 2;
+        const by = id.includes("-in") ? +m[4] : id.includes("-out") ? +m[2] : (+m[2] + +m[4]) / 2;
+        const burst = document.createElementNS(SVGNS, "g");
+        burst.setAttribute("class", "d-burst");
+        burst.innerHTML = `<circle cx="${bx}" cy="${by}" r="11"/><text x="${bx}" y="${by + 5}" text-anchor="middle">✕</text>`;
+        svg.appendChild(burst);
+      }
+    }
+  });
+}
+
 function setDiagramStep(i) {
   const [r, id] = route();
   const L = LEARN[id];
@@ -520,10 +554,78 @@ function setDiagramStep(i) {
   const n = L.diagram.steps.length;
   state.diagram = { product: id, step: (i + n) % n };
   const s = L.diagram.steps[state.diagram.step];
-  $$("#view [data-did]").forEach(el => el.classList.toggle("on", s.on.includes(el.dataset.did)));
+  $$("[data-did]").forEach(el => el.classList.toggle("on", s.on.includes(el.dataset.did)));
   $$(".step-dot").forEach((d, j) => d.classList.toggle("on", j === state.diagram.step));
-  $("#step-caption").innerHTML = `<strong>${state.diagram.step + 1}. ${s.t}</strong><p>${s.d}</p>`;
+  $$(".step-caption").forEach(c => c.innerHTML = `<strong>${state.diagram.step + 1}. ${s.t}</strong><p>${s.d}</p>`);
+  $$(".diagram").forEach(spawnPackets);
 }
+
+function syncPlayBtns() {
+  $$(`[data-step-act="play"]`).forEach(b => b.textContent = state.diagramTimer ? "⏸ Pausa" : "▶ Auto");
+}
+
+function togglePlay() {
+  if (state.diagramTimer) {
+    clearInterval(state.diagramTimer);
+    state.diagramTimer = null;
+  } else {
+    state.diagramTimer = setInterval(() => {
+      const [, id] = route();
+      const L = LEARN[id];
+      if (!L) { clearInterval(state.diagramTimer); state.diagramTimer = null; }
+      else if (state.diagram.step >= L.diagram.steps.length - 1) {
+        clearInterval(state.diagramTimer); state.diagramTimer = null; syncPlayBtns();
+      } else setDiagramStep(state.diagram.step + 1);
+    }, 2800);
+  }
+  syncPlayBtns();
+}
+
+function openDiagramModal() {
+  const [, id] = route();
+  const p = PRODUCTS.find(x => x.id === id);
+  const L = LEARN[id];
+  if (!p || !L || $("#diagram-modal")) return;
+  const m = document.createElement("div");
+  m.className = "diagram-modal";
+  m.id = "diagram-modal";
+  m.innerHTML = `
+    <div class="diagram-modal-box" style="--accent:${p.accent}">
+      <div class="dm-head">
+        <span class="card-kicker">${p.num} ${p.name} · Diagrama interactivo</span>
+        <button class="btn btn-sm" data-step-act="close-diagram">✕ Cerrar</button>
+      </div>
+      ${buildDiagram(L.diagram)}
+      <div class="step-caption"></div>
+      ${diagramControlsHTML(L.diagram.steps.length, false)}
+      <div class="diagram-legend">
+        <span><i class="lg good"></i> Tráfico legítimo</span>
+        <span><i class="lg bad"></i> Ataque / bloqueado</span>
+      </div>
+    </div>`;
+  m.addEventListener("click", e => { if (e.target === m) closeDiagramModal(); });
+  document.body.appendChild(m);
+  setDiagramStep(state.diagram.step);
+  syncPlayBtns();
+}
+
+function closeDiagramModal() {
+  $("#diagram-modal")?.remove();
+  if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; syncPlayBtns(); }
+}
+
+document.addEventListener("click", e => {
+  const btn = e.target.closest("[data-step-act]");
+  if (!btn) return;
+  const act = btn.dataset.stepAct;
+  if (!state.diagram && act !== "zoom" && act !== "close-diagram") return;
+  if (act === "prev") setDiagramStep(state.diagram.step - 1);
+  else if (act === "next") setDiagramStep(state.diagram.step + 1);
+  else if (act === "step") setDiagramStep(+btn.dataset.step);
+  else if (act === "play") togglePlay();
+  else if (act === "zoom") openDiagramModal();
+  else if (act === "close-diagram") closeDiagramModal();
+});
 
 // ── Render + event wiring ────────────────────────────────────────────────────
 function markActiveNav() {
@@ -552,13 +654,6 @@ function wire(r, arg) {
   if (r === "producto") {
     const step = state.diagram?.product === arg ? state.diagram.step : 0;
     setDiagramStep(step);
-    $("#step-prev").addEventListener("click", () => setDiagramStep(state.diagram.step - 1));
-    $("#step-next").addEventListener("click", () => setDiagramStep(state.diagram.step + 1));
-    $$(".step-dot").forEach(d => d.addEventListener("click", () => setDiagramStep(+d.dataset.step)));
-    $("#step-play").addEventListener("click", function () {
-      if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; this.textContent = "▶ Auto"; }
-      else { state.diagramTimer = setInterval(() => setDiagramStep(state.diagram.step + 1), 2800); this.textContent = "⏸ Pausa"; }
-    });
   }
   if (r === "flashcards") {
     const flip = () => { state.flash.flipped = !state.flash.flipped; $("#flashcard").classList.toggle("flipped", state.flash.flipped); };
