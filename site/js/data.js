@@ -136,6 +136,24 @@ const QUICK_LINKS = [
   { id: "labs", label: "Labs", icon: "🧪", color: "#0051C3", desc: "Demos prácticas y topologías paso a paso" }
 ];
 
+// Portafolios futuros — placeholders "en progreso"
+const SOON_PORTFOLIOS = [
+  {
+    id: "cfone",
+    title: "Cloudflare One · Zero Trust · SASE",
+    short: "Cloudflare One",
+    accent: "#00C2FF",
+    items: ["Access / ZTNA", "Secure Web Gateway", "CASB", "Data Loss Prevention", "Browser Isolation", "Digital Experience Monitoring"]
+  },
+  {
+    id: "net",
+    title: "Network Services",
+    short: "Network Services",
+    accent: "#FBAD41",
+    items: ["Magic Transit", "Magic WAN", "Magic Firewall", "Cloudflare Tunnel", "Load Balancing", "Cloudflare DNS"]
+  }
+];
+
 const NAV_TOP = [
   { id: "inicio", label: "Inicio", color: "#F6821F" },
   { id: "portafolio", label: "Portafolio", color: "#00C2FF" }

@@ -76,17 +76,18 @@ function renderSidebar() {
         </div>`).join("")}
     </div>
     <div class="side-label">Más portafolios</div>
+    ${SOON_PORTFOLIOS.map(s => `
     <div class="section section-soon">
       <button class="section-head">
-        <span class="num" style="color:var(--cyan)">◌</span>
-        <span>Cloudflare One</span>
+        <span class="num" style="color:${s.accent}">◌</span>
+        <span>${s.short}</span>
         <span class="soon-pill">en progreso</span>
       </button>
       <div class="section-body">
-        <a>Zero Trust · SASE · Network Services</a>
+        <a>${s.title}</a>
         <a class="soon-note">🚧 En construcción — próximamente con actividades hands-on.</a>
       </div>
-    </div>`;
+    </div>`).join("")}`;
 
   $("#search-open").addEventListener("click", openPalette);
   $("#theme-btn").addEventListener("click", toggleTheme);
@@ -226,6 +227,15 @@ function viewPortafolio(focusId) {
           <div class="pitch">“${p.pitch}”</div>
           <a class="btn btn-sm" href="#/producto/${p.id}" style="margin-top:14px;display:inline-block">Explorar demo interactiva →</a>
         </div>
+      </div>`).join("")}
+    ${SOON_PORTFOLIOS.map(s => `
+      <div class="section-title" style="--accent:${s.accent}">${s.title} <span class="soon-pill" style="margin-left:8px">en progreso</span></div>
+      <div class="grid grid-3">
+        ${s.items.map(i => `
+          <div class="card soon-card" style="--accent:${s.accent}">
+            <h3>${i}</h3>
+            <p>Próximamente con su página interactiva.</p>
+          </div>`).join("")}
       </div>`).join("")}`;
 }
 
@@ -348,7 +358,14 @@ function viewLabs(focusId) {
           </div>`).join("")}
         <button class="btn btn-sm" data-reset-lab="${l.id}">Reiniciar</button>
       </div>`;
-    }).join("")}`;
+    }).join("")}
+    ${SOON_PORTFOLIOS.map(s => `
+      <div class="section-title" style="--accent:${s.accent}">${s.title} <span class="soon-pill" style="margin-left:8px">en progreso</span></div>
+      <div class="card soon-card" style="--accent:${s.accent};margin-bottom:18px">
+        <div class="card-kicker">Hands-on Lab</div>
+        <h3>Retos de ${s.short}</h3>
+        <p class="muted">🚧 En construcción — aquí aparecerán los labs paso a paso de este portafolio.</p>
+      </div>`).join("")}`;
 }
 
 function viewProgreso() {

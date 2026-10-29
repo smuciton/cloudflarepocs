@@ -753,3 +753,11 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 }
 .soon-note { color: var(--text-faint) !important; font-style: italic; }
 .section-soon .section-head { opacity: 0.85; }
+
+/* ---------- Tarjetas "en progreso" ---------- */
+.soon-card {
+  border-style: dashed;
+  opacity: 0.65;
+}
+.soon-card h3 { color: var(--text-dim); }
+.soon-card p { color: var(--text-faint) !important; }
