@@ -153,12 +153,42 @@ const SOON_PORTFOLIOS = [
     short: "Cloudflare One",
     accent: "#00C2FF",
     items: [
-      { name: "Access / ZTNA", slug: "access-ztna" },
-      { name: "Secure Web Gateway", slug: "secure-web-gateway" },
-      { name: "CASB", slug: "casb" },
-      { name: "Data Loss Prevention", slug: "dlp" },
-      { name: "Browser Isolation", slug: "browser-isolation" },
-      { name: "Digital Experience Monitoring", slug: "dem" }
+      { name: "Access / ZTNA", slug: "access-ztna", objectives: [
+        "Acceso a apps internas basado en identidad",
+        "Políticas por usuario, dispositivo y postura",
+        "App Launcher y acceso self-service",
+        "Logs de acceso por identidad"
+      ]},
+      { name: "Secure Web Gateway", slug: "secure-web-gateway", objectives: [
+        "Inspección del tráfico saliente (egress)",
+        "Filtrado DNS y HTTP por categorías",
+        "Protección contra amenazas web y phishing",
+        "Políticas de uso aceptable"
+      ]},
+      { name: "CASB", slug: "casb", objectives: [
+        "Descubrimiento de shadow IT y apps SaaS",
+        "Postura de seguridad de aplicaciones SaaS",
+        "Detección de permisos excesivos",
+        "Alertas por configuraciones riesgosas"
+      ]},
+      { name: "Data Loss Prevention", slug: "dlp", objectives: [
+        "Detección de datos sensibles (PII, tarjetas)",
+        "Políticas contra exfiltración",
+        "Watermarks en descargas",
+        "Integración con Gateway y CASB"
+      ]},
+      { name: "Browser Isolation", slug: "browser-isolation", objectives: [
+        "Navegación remota aislada del endpoint",
+        "Protección ante phishing y drive-by",
+        "Ejecución de código web fuera del equipo",
+        "Políticas por nivel de riesgo del destino"
+      ]},
+      { name: "Digital Experience Monitoring", slug: "dem", objectives: [
+        "Monitoreo de experiencia del usuario final",
+        "Salud de la ruta hacia la aplicación",
+        "Pruebas sintéticas de disponibilidad",
+        "Visibilidad para equipos de soporte"
+      ]}
     ]
   },
   {
@@ -168,12 +198,42 @@ const SOON_PORTFOLIOS = [
     short: "Network Services",
     accent: "#FBAD41",
     items: [
-      { name: "Magic Transit", slug: "magic-transit" },
-      { name: "Magic WAN", slug: "magic-wan" },
-      { name: "Magic Firewall", slug: "magic-firewall" },
-      { name: "Cloudflare Tunnel", slug: "cloudflare-tunnel" },
-      { name: "Load Balancing", slug: "load-balancing" },
-      { name: "Cloudflare DNS", slug: "cloudflare-dns" }
+      { name: "Magic Transit", slug: "magic-transit", objectives: [
+        "Protección DDoS para tu propia red",
+        "Anuncio de prefijos vía GRE/anycast",
+        "Limpieza del tráfico en el edge",
+        "Retorno por túneles al origen"
+      ]},
+      { name: "Magic WAN", slug: "magic-wan", objectives: [
+        "WAN como servicio en el edge",
+        "Conecta sitios y VPCs a la red global",
+        "Políticas de ruteo por red",
+        "Reemplaza MPLS tradicional"
+      ]},
+      { name: "Magic Firewall", slug: "magic-firewall", objectives: [
+        "Firewall de red stateful en el edge",
+        "Políticas L3/L4 por IP, puerto y geografía",
+        "Detección de intrusiones (IDS)",
+        "Reglas gestionadas por Cloudflare"
+      ]},
+      { name: "Cloudflare Tunnel", slug: "cloudflare-tunnel", objectives: [
+        "Conecta orígenes sin exponer la IP",
+        "Túnel saliente: cero conexiones entrantes",
+        "Acceso a apps y redes privadas",
+        "Integración nativa con Zero Trust"
+      ]},
+      { name: "Load Balancing", slug: "load-balancing", objectives: [
+        "Distribución por geografía y latencia",
+        "Health checks y failover automático",
+        "Pools multi-origen y multi-nube",
+        "Steering por sesión (sticky)"
+      ]},
+      { name: "Cloudflare DNS", slug: "cloudflare-dns", objectives: [
+        "DNS autoritativo anycast global",
+        "Respuestas en ~11 ms promedio",
+        "DNSSEC incluido de fábrica",
+        "Secondary DNS y transferencias de zona"
+      ]}
     ]
   }
 ];
