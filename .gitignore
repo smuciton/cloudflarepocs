@@ -1,0 +1,9 @@
+# Entorno virtual de Python
+.venv/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+nohup.out
