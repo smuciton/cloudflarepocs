@@ -76,15 +76,17 @@ function renderSidebar() {
         </div>`).join("")}
     </div>
     <div class="side-label">Más portafolios</div>
-    ${SOON_PORTFOLIOS.map(s => `
-    <div class="section section-soon">
+    ${SOON_PORTFOLIOS.map((s, i) => `
+    <div class="section section-soon" data-section="${s.id}">
       <button class="section-head">
-        <span class="num" style="color:${s.accent}">◌</span>
+        <span class="num" style="color:${s.accent}">${PRODUCTS.length + i + 1}.0</span>
         <span>${s.short}</span>
+        <span class="obj-count">${s.items.length} objetivos</span>
         <span class="soon-pill">en progreso</span>
+        <span class="chev">▶</span>
       </button>
       <div class="section-body">
-        <a>${s.title}</a>
+        ${s.items.map((it, j) => `<a class="soon-item">${j + 1}. ${it}</a>`).join("")}
         <a class="soon-note">🚧 En construcción — próximamente con actividades hands-on.</a>
       </div>
     </div>`).join("")}`;

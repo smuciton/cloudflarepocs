@@ -761,3 +761,5 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 }
 .soon-card h3 { color: var(--text-dim); }
 .soon-card p { color: var(--text-faint) !important; }
+
+.soon-item { cursor: default; opacity: 0.7; }
