@@ -724,3 +724,15 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
   margin-bottom: 12px;
 }
 @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+/* ---------- Mapa del portafolio ---------- */
+.pf-tile { cursor: pointer; transition: filter 0.2s; }
+.pf-tile > rect:first-child { fill: #FFFFFF; stroke: #E2E8F0; stroke-width: 1.2; }
+.pf-tile:hover { filter: drop-shadow(0 0 12px color-mix(in srgb, var(--tacc) 60%, transparent)); }
+.pf-tile:hover > rect:first-child { stroke: var(--tacc); stroke-width: 2; }
+.pf-ic { font-size: 18px; }
+.pf-name { fill: #1F2937; font-size: 10.5px; font-weight: 700; font-family: var(--font-display); }
+.pf-sub { fill: #9CA3AF; font-size: 8.5px; font-family: var(--font-body); }
+.d-layer { fill: #B45309; font-size: 9px; letter-spacing: 2px; font-family: var(--font-display); font-weight: 600; }
+.pf-sc rect { fill: #1F2937; stroke: #F6821F; stroke-width: 1.5; }
+.pf-sc text { fill: #FDEAD7; font-size: 11px; font-weight: 600; font-family: var(--font-body); }
