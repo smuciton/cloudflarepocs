@@ -1,5 +1,9 @@
 name = "cf-portafolio-guide"
 compatibility_date = "2026-10-29"
 
+routes = [
+  { pattern = "cloudflarepocs.com", custom_domain = true }
+]
+
 [assets]
 directory = "./site"
