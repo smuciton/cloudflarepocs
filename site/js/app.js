@@ -410,64 +410,125 @@ function viewPruebas() {
     </div>`;
 }
 
-// ── Diagramas interactivos ───────────────────────────────────────────────────
-function flowSpec(d) {
-  const sy = d.sources.length === 1 ? [150] : [82, 218];
-  const ty = d.targets.length === 1 ? [150] : [82, 218];
-  const nodes = [
-    ...d.sources.map((s, i) => ({ id: `s${i}`, x: 95, y: sy[i], icon: s.icon, label: s.label, sub: s.packet, cls: s.cls })),
-    { id: "edge", kind: "edge", x: 280, y: 50, w: 190, h: 200, label: "CLOUDFLARE EDGE" },
-    { id: "mod", kind: "mod", x: 295, y: 95, w: 160, h: 110, label: d.module, sub: d.moduleSub, cls: "mod" },
-    ...d.targets.map((t, i) => ({ id: `t${i}`, x: 595, y: ty[i], icon: t.icon, label: t.label, cls: t.cls }))
-  ];
-  const inY = d.sources.length === 1 ? [150] : [140, 168];
-  const outY = d.targets.length === 1 ? [150] : [140, 168];
-  const edges = [
-    ...d.sources.map((s, i) => ({ id: `e-in${i}`, x1: 128, y1: sy[i], x2: 292, y2: inY[i], cls: s.cls, label: s.packet })),
-    ...d.targets.map((t, i) => ({ id: `e-out${i}`, x1: 458, y1: outY[i], x2: 562, y2: ty[i], cls: t.cls }))
-  ];
-  return { nodes, edges };
+// ── Diagramas interactivos (estilo Cloudflare) ───────────────────────────────
+function cfCloud(x, y, s = 1) {
+  return `<g transform="translate(${x} ${y}) scale(${s})">
+    <circle cx="9" cy="17" r="9" fill="#FBAD41"/>
+    <rect x="4" y="17" width="15" height="12" rx="6" fill="#FBAD41"/>
+    <circle cx="26" cy="13" r="12" fill="#F6821F"/>
+    <circle cx="38" cy="18" r="8" fill="#F6821F"/>
+    <rect x="15" y="18" width="30" height="11" rx="5.5" fill="#F6821F"/>
+  </g>`;
 }
 
-function clientSpec(d) {
-  const at = id => d.nodes.find(n => n.id === id);
-  const anchor = n => n.kind ? { x: n.x + n.w / 2, y: n.y + n.h / 2 } : { x: n.x, y: n.y };
-  const edges = d.edges.map(e => {
-    const a = anchor(at(e.from)), b = anchor(at(e.to));
-    const dir = b.x > a.x ? 1 : -1;
-    return { id: e.id, x1: a.x + 34 * dir, y1: a.y, x2: b.x - (at(e.to).kind ? at(e.to).w / 2 + 4 : 34) * 1, y2: b.y, cls: e.cls, label: e.label };
-  });
-  return { nodes: d.nodes, edges };
+function flowSpec(d) {
+  const sy = d.sources.length === 1 ? [180] : [115, 265];
+  const mods = [];
+  if (d.premod) mods.push({ id: "premod", label: d.premod.label, sub: d.premod.sub });
+  mods.push({ id: "mod", label: d.module, sub: d.moduleSub });
+  const n = mods.length, bw = n === 2 ? 105 : 175, mx = n === 2 ? 340 : 375;
+  mods.forEach((m, i) => Object.assign(m, { x: mx + i * (bw + 15), y: 140, w: bw, h: 80 }));
+  const last = mods[n - 1];
+  const modRight = last.x + last.w, modBX = last.x + last.w / 2;
+  const nodes = d.sources.map((s, i) => ({ id: `s${i}`, x: 75, y: sy[i], icon: s.icon, label: s.label, sub: s.packet, cls: s.cls }));
+  const edges = d.sources.map((s, i) => ({
+    id: `e-in${i}`, x1: 103, y1: sy[i], x2: 268,
+    y2: d.sources.length === 1 ? 180 : (i === 0 ? 175 : 205),
+    cls: s.cls, label: s.packet
+  }));
+  edges.push({ id: "e-dc", x1: 332, y1: 180, x2: mods[0].x - 3, y2: 180, cls: "good" });
+  if (n === 2) edges.push({ id: "e-mm", x1: mods[0].x + bw + 3, y1: 180, x2: mods[1].x - 3, y2: 180, cls: "good" });
+  edges.push({ id: "e-out0", x1: modRight + 3, y1: 180, x2: 642, y2: 180, cls: "good" });
+  edges.push({ id: "e-out1", x1: modBX, y1: 222, x2: modBX, y2: 280, cls: "bad" });
+  return { d, mods, nodes, edges, modRight, modBX };
+}
+
+function iconBox(n) {
+  return `<g data-did="${n.id}" class="d-node ${n.cls}">
+    <rect x="${n.x - 26}" y="${n.y - 26}" width="52" height="52" rx="10"/>
+    <text class="d-icon" x="${n.x}" y="${n.y + 8}" text-anchor="middle">${n.icon}</text>
+    <text class="d-nlabel" x="${n.x}" y="${n.y + 44}" text-anchor="middle">${n.label}</text>
+    ${n.sub ? `<text class="d-nlabel sm" x="${n.x}" y="${n.y + 57}" text-anchor="middle">${n.sub}</text>` : ""}
+  </g>`;
 }
 
 function buildDiagram(spec) {
-  const { nodes, edges } = spec.type === "client" ? clientSpec(spec) : flowSpec(spec);
-  const svg = [];
-  svg.push(`<svg class="diagram" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">`);
+  const svg = [`<svg class="diagram" viewBox="0 0 780 355" xmlns="http://www.w3.org/2000/svg">`];
+  svg.push(`<rect class="d-bg" x="0" y="0" width="780" height="355" rx="14"/>`);
+  if (spec.type === "client") { buildClientInto(svg, spec); svg.push("</svg>"); return svg.join(""); }
+  const { d, mods, nodes, edges, modRight, modBX } = flowSpec(spec);
+  svg.push(`<rect class="d-inet" x="10" y="30" width="762" height="310" rx="14"/>
+    <text class="d-inetlabel" x="42" y="22">☁ Internet</text>`);
+  if (d.announce) svg.push(`<g class="d-announce"><text x="46" y="52" font-size="17">📣</text>
+    <text class="d-an-t" x="72" y="46">BGP Announcement</text>
+    <text class="d-an-s" x="72" y="60">Cloudflare Anycast IPs · Customer IPs</text></g>`);
+  svg.push(`<rect data-did="edge" class="d-net" x="255" y="62" width="335" height="268" rx="12"/>`);
+  svg.push(cfCloud(280, 74, 0.85));
+  svg.push(`<text class="d-nettitle" x="432" y="90" text-anchor="middle">Cloudflare Global Network</text>`);
   for (const e of edges) {
     const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
     svg.push(`<path data-did="${e.id}" class="d-edge ${e.cls}" d="M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}"/>`);
     if (e.label) svg.push(`<text data-did="${e.id}" class="d-elabel ${e.cls}" x="${mx}" y="${my - 8}" text-anchor="middle">${e.label}</text>`);
   }
-  for (const n of nodes) {
-    if (n.kind === "edge") {
-      svg.push(`<rect data-did="${n.id}" class="d-edgebox" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="12"/>
-        <text class="d-edgetitle" x="${n.x + n.w / 2}" y="${n.y + 18}" text-anchor="middle">${n.label}</text>`);
-    } else if (n.kind === "mod") {
-      svg.push(`<rect data-did="${n.id}" class="d-mod ${n.cls || ""}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="10"/>
-        <text class="d-modtitle" x="${n.x + n.w / 2}" y="${n.y + (n.sub ? 30 : 34)}" text-anchor="middle">${n.label}</text>
-        ${n.sub ? `<text class="d-modsub" x="${n.x + n.w / 2}" y="${n.y + 48}" text-anchor="middle">${n.sub}</text>` : ""}`);
-    } else {
-      svg.push(`<g data-did="${n.id}" class="d-node ${n.cls}">
-          <circle cx="${n.x}" cy="${n.y}" r="30"/>
-          <text class="d-icon" x="${n.x}" y="${n.y + 8}" text-anchor="middle">${n.icon}</text>
-          <text class="d-nlabel" x="${n.x}" y="${n.y + 50}" text-anchor="middle">${n.label}</text>
-          ${n.sub ? `<text class="d-nsub" x="${n.x}" y="${n.y + 64}" text-anchor="middle">${n.sub}</text>` : ""}
-        </g>`);
-    }
+  svg.push(`<g data-did="dc" class="d-dc">
+    <text class="d-dc-t" x="300" y="112" text-anchor="middle">Data Center</text>
+    <rect class="d-dcbox" x="270" y="120" width="60" height="140" rx="8"/>
+    <rect class="d-srv" x="279" y="132" width="42" height="13" rx="3"/>
+    <rect class="d-srv" x="279" y="151" width="42" height="13" rx="3"/>
+    <rect class="d-srv" x="279" y="170" width="42" height="13" rx="3"/>
+    <rect class="d-srv" x="279" y="189" width="42" height="13" rx="3"/>
+    <text class="d-dc-s" x="300" y="228" text-anchor="middle">Server</text>
+  </g>`);
+  for (const m of mods) {
+    svg.push(`<g data-did="${m.id}" class="d-mod-g"><rect x="${m.x}" y="${m.y}" width="${m.w}" height="${m.h}" rx="8"/>
+      <text class="d-modtitle" x="${m.x + m.w / 2}" y="${m.y + 34}" text-anchor="middle">${m.label}</text>
+      <text class="d-modsub" x="${m.x + m.w / 2}" y="${m.y + 52}" text-anchor="middle">${m.sub}</text></g>`);
   }
+  const chkX = (modRight + 648) / 2;
+  svg.push(`<g data-did="chk" class="d-chk"><circle cx="${chkX}" cy="180" r="13"/><text x="${chkX}" y="185" text-anchor="middle">✓</text></g>`);
+  svg.push(`<g data-did="t0" class="d-cust">
+    <text class="d-cust-t" x="704" y="52" text-anchor="middle">Customer Network /</text>
+    <text class="d-cust-t" x="704" y="66" text-anchor="middle">Applications</text>
+    <rect x="645" y="78" width="118" height="120" rx="10"/>
+    <rect class="d-srv b" x="662" y="95" width="84" height="14" rx="3"/>
+    <rect class="d-srv b" x="662" y="115" width="84" height="14" rx="3"/>
+    <rect class="d-srv b" x="662" y="135" width="84" height="14" rx="3"/>
+    <text class="d-cust-s" x="704" y="172" text-anchor="middle">${d.targets[0].icon} ${d.targets[0].label}</text>
+    <text class="d-cust-s" x="704" y="188" text-anchor="middle">☁️ Public clouds</text>
+  </g>`);
+  svg.push(`<g data-did="t1" class="d-blocked">
+    <rect x="${modBX - 58}" y="282" width="116" height="42" rx="9"/>
+    <text x="${modBX}" y="308" text-anchor="middle">⛔ ${d.targets[1].label}</text>
+  </g>`);
+  for (const n of nodes) svg.push(iconBox(n));
   svg.push(`</svg>`);
   return svg.join("");
+}
+
+function buildClientInto(svg, spec) {
+  const at = id => spec.nodes.find(n => n.id === id);
+  const anchor = n => n.kind ? { x: n.x + n.w / 2, y: n.y + n.h / 2 } : { x: n.x, y: n.y };
+  svg.push(`<rect class="d-inet" x="10" y="15" width="762" height="325" rx="14"/>
+    <text class="d-inetlabel" x="42" y="10">☁ Lado del cliente</text>`);
+  for (const e of spec.edges) {
+    const a = anchor(at(e.from)), b = anchor(at(e.to)), t = at(e.to);
+    const x2 = b.x - (t.kind ? t.w / 2 + 4 : 34);
+    const mx = (a.x + 30 + x2) / 2, my = (a.y + b.y) / 2;
+    svg.push(`<path data-did="${e.id}" class="d-edge ${e.cls}" d="M ${a.x + 30} ${a.y} L ${x2} ${b.y}"/>`);
+    if (e.label) svg.push(`<text data-did="${e.id}" class="d-elabel ${e.cls}" x="${mx}" y="${my - 8}" text-anchor="middle">${e.label}</text>`);
+  }
+  for (const n of spec.nodes) {
+    if (n.kind === "edge") {
+      svg.push(`<rect data-did="${n.id}" class="d-site" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="12"/>
+        <text class="d-nettitle sm" x="${n.x + n.w / 2}" y="${n.y + 18}" text-anchor="middle">${n.label}</text>`);
+    } else if (n.kind === "mod") {
+      svg.push(`<g data-did="${n.id}" class="d-mod-g"><rect class="${n.cls === "warn" ? "warn" : ""}" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="8"/>
+        <text class="d-modtitle" x="${n.x + n.w / 2}" y="${n.y + 26}" text-anchor="middle">${n.label}</text>
+        ${n.sub ? `<text class="d-modsub" x="${n.x + n.w / 2}" y="${n.y + 42}" text-anchor="middle">${n.sub}</text>` : ""}</g>`);
+    } else {
+      svg.push(iconBox(n));
+    }
+  }
 }
 
 function viewProducto(id) {

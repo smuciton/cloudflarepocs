@@ -554,7 +554,6 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
   .sidebar.open { transform: translateX(0); }
   .content, .topbar { padding-left: 18px; padding-right: 18px; }
 }
-
 /* ---------- Producto: página didáctica + diagrama ---------- */
 .product-page {
   display: grid;
@@ -583,57 +582,56 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .analogy strong { font-family: var(--font-display); color: var(--amber); font-size: 13px; letter-spacing: 1px; text-transform: uppercase; }
 .analogy p { font-size: 13.5px; color: var(--text-dim); margin-top: 4px; font-style: italic; }
 
-.diagram { width: 100%; height: auto; display: block; }
-.d-node circle {
-  fill: var(--card);
-  stroke: var(--border);
-  stroke-width: 1.5;
-  transition: all 0.3s;
-}
-.d-node.good circle { stroke: rgba(53,208,127,0.5); }
-.d-node.bad circle { stroke: rgba(240,80,110,0.5); }
-.d-icon { font-size: 24px; }
-.d-nlabel { fill: var(--text-dim); font-size: 11.5px; font-family: var(--font-body); font-weight: 600; }
-.d-nsub { fill: var(--text-faint); font-size: 9.5px; font-family: var(--font-mono); }
-.d-edgebox {
-  fill: rgba(246,130,31,0.03);
-  stroke: var(--border);
-  stroke-width: 1.2;
-  stroke-dasharray: 6 4;
-  transition: all 0.3s;
-}
-.d-edgetitle { fill: var(--text-faint); font-size: 9px; font-family: var(--font-display); letter-spacing: 2px; }
-.d-mod {
-  fill: var(--bg-soft);
-  stroke: var(--accent, var(--orange));
-  stroke-width: 1.5;
-  transition: all 0.3s;
-}
-.d-mod.warn { stroke: var(--amber); }
-.d-modtitle { fill: var(--text); font-size: 13px; font-family: var(--font-display); font-weight: 700; }
-.d-modsub { fill: var(--text-faint); font-size: 9px; font-family: var(--font-body); }
-.d-edge {
-  stroke: var(--border);
-  stroke-width: 2;
-  fill: none;
-  stroke-dasharray: 5 5;
-  transition: all 0.3s;
-}
-.d-elabel { fill: var(--text-faint); font-size: 9.5px; font-family: var(--font-mono); }
+.diagram { width: 100%; height: auto; display: block; border-radius: 12px; }
 
-/* estado dim mientras hay paso activo */
+/* ── Diagrama estilo Cloudflare (superficie clara) ── */
+.d-bg { fill: #FBFCFE; }
+.d-inet { fill: none; stroke: #BFD9EA; stroke-width: 1.5; stroke-dasharray: 7 5; }
+.d-inetlabel { fill: #7FA8C9; font-size: 12px; font-family: var(--font-body); font-weight: 600; }
+.d-announce .d-an-t { fill: #374151; font-size: 11px; font-weight: 700; font-family: var(--font-body); }
+.d-announce .d-an-s { fill: #6B7280; font-size: 9.5px; font-family: var(--font-body); }
+.d-net { fill: rgba(246, 130, 31, 0.04); stroke: #F6821F; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.d-site { fill: rgba(59, 130, 246, 0.04); stroke: #3B82F6; stroke-width: 1.5; stroke-dasharray: 3 3; }
+.d-nettitle { fill: #374151; font-size: 15px; font-weight: 600; font-family: var(--font-display); }
+.d-nettitle.sm { font-size: 9.5px; letter-spacing: 1.5px; }
+.d-dc-t { fill: #92400E; font-size: 10px; font-family: var(--font-display); letter-spacing: 1px; }
+.d-dcbox { fill: #FFFFFF; stroke: #F6821F; stroke-width: 1.5; }
+.d-srv { fill: #FFF3E6; stroke: #F0B27A; stroke-width: 1; }
+.d-srv.b { fill: #DBEAFE; stroke: #93C5FD; }
+.d-dc-s { fill: #6B7280; font-size: 9px; font-family: var(--font-body); }
+.d-mod-g rect { fill: #FFFDF9; stroke: #F6821F; stroke-width: 1.5; }
+.d-mod-g rect.warn { stroke: #D97706; fill: #FFFBEB; }
+.d-modtitle { fill: #1F2937; font-size: 12.5px; font-family: var(--font-display); font-weight: 700; }
+.d-modsub { fill: #9CA3AF; font-size: 9px; font-family: var(--font-body); }
+.d-cust rect:first-of-type { fill: #EFF6FF; stroke: #3B82F6; stroke-width: 1.5; }
+.d-cust-t { fill: #1E3A8A; font-size: 11px; font-weight: 700; font-family: var(--font-body); }
+.d-cust-s { fill: #3B5B92; font-size: 10px; font-family: var(--font-body); }
+.d-blocked rect { fill: #FEF2F2; stroke: #DC2626; stroke-width: 1.5; }
+.d-blocked text { fill: #DC2626; font-size: 11.5px; font-weight: 600; font-family: var(--font-body); }
+.d-chk circle { fill: #ECFDF5; stroke: #10B981; stroke-width: 2; }
+.d-chk text { fill: #10B981; font-size: 14px; font-weight: 700; }
+.d-node rect { fill: #F1F5F9; stroke: #94A3B8; stroke-width: 1.5; }
+.d-node.good rect { stroke: #3B82F6; }
+.d-node.bad rect { stroke: #DC2626; }
+.d-icon { font-size: 22px; }
+.d-nlabel { fill: #374151; font-size: 10.5px; font-weight: 600; font-family: var(--font-body); }
+.d-nlabel.sm { fill: #9CA3AF; font-size: 8.5px; font-family: var(--font-mono); }
+.d-edge { stroke: #CBD5E1; stroke-width: 2; fill: none; stroke-dasharray: 5 5; }
+.d-elabel { fill: #94A3B8; font-size: 9.5px; font-family: var(--font-mono); }
+
+/* estado dim/on por paso */
 .diagram [data-did] { opacity: 0.32; transition: opacity 0.3s; }
 .diagram [data-did].on { opacity: 1; }
 .diagram .d-edge.on { stroke-width: 2.5; animation: dashmove 0.9s linear infinite; }
-.diagram .d-edge.on.good { stroke: var(--green); }
-.diagram .d-edge.on.bad { stroke: var(--red); }
-.diagram .d-elabel.on.good { fill: var(--green); }
-.diagram .d-elabel.on.bad { fill: var(--red); }
-.diagram .d-node.on circle { stroke-width: 2.5; filter: drop-shadow(0 0 8px rgba(246,130,31,0.35)); }
-.diagram .d-node.on.good circle { filter: drop-shadow(0 0 10px rgba(53,208,127,0.45)); }
-.diagram .d-node.on.bad circle { filter: drop-shadow(0 0 10px rgba(240,80,110,0.45)); }
-.diagram .d-edgebox.on { stroke: var(--accent, var(--orange)); }
-.diagram .d-mod.on { filter: drop-shadow(0 0 12px rgba(246,130,31,0.4)); stroke-width: 2.5; }
+.diagram .d-edge.on.good { stroke: #22C55E; }
+.diagram .d-edge.on.bad { stroke: #DC2626; }
+.diagram .d-elabel.on.good { fill: #16A34A; }
+.diagram .d-elabel.on.bad { fill: #DC2626; }
+.diagram g.on { filter: drop-shadow(0 0 10px rgba(246, 130, 31, 0.45)); }
+.diagram .d-node.on.good { filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5)); }
+.diagram .d-node.on.bad { filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.5)); }
+.diagram .d-net.on, .diagram .d-site.on { stroke-width: 2.5; }
+.diagram .d-chk.on circle { stroke-width: 3; }
 
 @keyframes dashmove { to { stroke-dashoffset: -20; } }
 
@@ -686,17 +684,17 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 }
 
 /* ---------- Paquetes animados + bloqueo ---------- */
-.d-packet.good { fill: var(--green); filter: drop-shadow(0 0 4px rgba(53,208,127,0.8)); }
-.d-packet.bad { fill: var(--red); filter: drop-shadow(0 0 4px rgba(240,80,110,0.8)); }
+.d-packet.good { fill: #16A34A; filter: drop-shadow(0 0 4px rgba(22,163,74,0.8)); }
+.d-packet.bad { fill: #DC2626; filter: drop-shadow(0 0 4px rgba(220,38,38,0.8)); }
 .d-burst circle {
   fill: none;
-  stroke: var(--red);
+  stroke: #DC2626;
   stroke-width: 2.5;
   transform-box: fill-box;
   transform-origin: center;
   animation: burst 1.1s ease-out infinite;
 }
-.d-burst text { fill: var(--red); font-size: 13px; font-weight: 700; }
+.d-burst text { fill: #DC2626; font-size: 13px; font-weight: 700; }
 @keyframes burst {
   0% { transform: scale(0.5); opacity: 1; }
   100% { transform: scale(1.7); opacity: 0; }
