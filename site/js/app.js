@@ -55,11 +55,10 @@ function renderSidebar() {
     </div>
     <div class="side-label">Accesos rápidos</div>
     <nav id="quick-nav">
-      ${QUICK_LINKS.map(q => `
+      ${[...NAV_TOP, ...QUICK_LINKS, ...NAV_EXTRA].map(q => `
         <a class="nav-link" href="#/${q.id}" data-route="${q.id}">
           <span class="dot" style="background:${q.color};box-shadow:0 0 8px ${q.color}"></span>${q.label}
         </a>`).join("")}
-      ${NAV_EXTRA.map(n => `<a class="nav-link" href="#/${n.id}" data-route="${n.id}"><span class="dot" style="background:var(--text-faint)"></span>${n.label}</a>`).join("")}
     </nav>
     <div class="side-label">Application Security</div>
     <div id="sections">

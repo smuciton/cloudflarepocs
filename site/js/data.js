@@ -136,10 +136,13 @@ const QUICK_LINKS = [
   { id: "labs", label: "Labs", icon: "🧪", color: "#0051C3", desc: "Demos prácticas y topologías paso a paso" }
 ];
 
+const NAV_TOP = [
+  { id: "inicio", label: "Inicio", color: "#F6821F" },
+  { id: "portafolio", label: "Portafolio", color: "#00C2FF" }
+];
+
 const NAV_EXTRA = [
-  { id: "inicio", label: "Inicio" },
-  { id: "portafolio", label: "Portafolio" },
-  { id: "pruebas", label: "Pruebas de seguridad" }
+  { id: "pruebas", label: "Pruebas de seguridad", color: "#35D07F" }
 ];
 
 const FLASHCARDS = [
