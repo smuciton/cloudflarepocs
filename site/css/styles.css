@@ -736,3 +736,20 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .d-layer { fill: #B45309; font-size: 9px; letter-spacing: 2px; font-family: var(--font-display); font-weight: 600; }
 .pf-sc rect { fill: #1F2937; stroke: #F6821F; stroke-width: 1.5; }
 .pf-sc text { fill: #FDEAD7; font-size: 11px; font-weight: 600; font-family: var(--font-body); }
+
+/* ---------- Sección "en progreso" ---------- */
+.soon-pill {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--amber);
+  background: rgba(251, 173, 65, 0.12);
+  border: 1px solid rgba(251, 173, 65, 0.35);
+  border-radius: 20px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.soon-note { color: var(--text-faint) !important; font-style: italic; }
+.section-soon .section-head { opacity: 0.85; }

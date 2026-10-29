@@ -60,7 +60,7 @@ function renderSidebar() {
           <span class="dot" style="background:${q.color};box-shadow:0 0 8px ${q.color}"></span>${q.label}
         </a>`).join("")}
     </nav>
-    <div class="side-label">Application Security</div>
+    <div class="side-label">Hands-On App Security</div>
     <div id="sections">
       ${PRODUCTS.map(p => `
         <div class="section ${openSections.has(p.id) ? "open" : ""}" data-section="${p.id}">
@@ -74,6 +74,18 @@ function renderSidebar() {
             ${p.objectives.map((o, i) => `<a href="#/producto/${p.id}">${i + 1}. ${o}</a>`).join("")}
           </div>
         </div>`).join("")}
+    </div>
+    <div class="side-label">Más portafolios</div>
+    <div class="section section-soon">
+      <button class="section-head">
+        <span class="num" style="color:var(--cyan)">◌</span>
+        <span>Cloudflare One</span>
+        <span class="soon-pill">en progreso</span>
+      </button>
+      <div class="section-body">
+        <a>Zero Trust · SASE · Network Services</a>
+        <a class="soon-note">🚧 En construcción — próximamente con actividades hands-on.</a>
+      </div>
     </div>`;
 
   $("#search-open").addEventListener("click", openPalette);
