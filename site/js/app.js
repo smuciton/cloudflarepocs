@@ -71,7 +71,7 @@ function renderSidebar() {
             <span class="chev">▶</span>
           </button>
           <div class="section-body">
-            ${p.objectives.map((o, i) => `<a href="#/producto/${p.id}">${i + 1}. ${o}</a>`).join("")}
+            ${p.objectives.map((o, i) => `<a href="#/application-security/${p.id}">${i + 1}. ${o}</a>`).join("")}
           </div>
         </div>`).join("")}
     </div>
@@ -86,7 +86,7 @@ function renderSidebar() {
         <span class="chev">▶</span>
       </button>
       <div class="section-body">
-        ${s.items.map((it, j) => `<a class="soon-item">${j + 1}. ${it}</a>`).join("")}
+        ${s.items.map((it, j) => `<a class="soon-item" href="#/${s.slug}/${it.slug}">${j + 1}. ${it.name}</a>`).join("")}
         <a class="soon-note">🚧 En construcción — próximamente con actividades hands-on.</a>
       </div>
     </div>`).join("")}`;
@@ -112,7 +112,8 @@ function setAllSections(open) {
 // ── Command palette (⌘K) ────────────────────────────────────────────────────
 function paletteItems() {
   const items = [
-    ...PRODUCTS.map(p => ({ label: `${p.num} ${p.name}`, hint: p.tagline, type: "producto", go: `producto/${p.id}` })),
+    ...PRODUCTS.map(p => ({ label: `${p.num} ${p.name}`, hint: p.tagline, type: "producto", go: `${APPSEC}/${p.id}` })),
+    ...SOON_PORTFOLIOS.flatMap(s => s.items.map(i => ({ label: i.name, hint: s.title, type: "en progreso", go: `${s.slug}/${i.slug}` }))),
     ...LABS.map(l => ({ label: l.title, hint: l.goal, type: "lab", go: `labs/${l.id}` })),
     ...FLASHCARDS.map(f => ({ label: f.q, hint: f.a.slice(0, 60) + "…", type: "flashcard", go: "flashcards" })),
     { label: "Practice Quiz", hint: "Preguntas estilo examen", type: "quiz", go: "quiz" },
@@ -186,7 +187,7 @@ function viewInicio() {
     <div class="section-title">Dominios · Application Security</div>
     <div class="grid grid-2">
       ${PRODUCTS.map(p => `
-        <div class="card clickable card-accent-top" style="--accent:${p.accent}" onclick="location.hash='#/producto/${p.id}'">
+        <div class="card clickable card-accent-top" style="--accent:${p.accent}" onclick="location.hash='#/application-security/${p.id}'">
           <div class="card-kicker" style="--accent:${p.accent}">${p.num} · ${p.weight}% peso</div>
           <h3>${p.name}</h3>
           <p>${p.tagline}</p>
@@ -227,15 +228,15 @@ function viewPortafolio(focusId) {
           <div class="muted" style="margin-bottom:6px"><strong style="color:var(--text)">Resuelve:</strong> ${p.solves}</div>
           ${p.objectives.map(o => `<div class="objective">${o}</div>`).join("")}
           <div class="pitch">“${p.pitch}”</div>
-          <a class="btn btn-sm" href="#/producto/${p.id}" style="margin-top:14px;display:inline-block">Explorar demo interactiva →</a>
+          <a class="btn btn-sm" href="#/application-security/${p.id}" style="margin-top:14px;display:inline-block">Explorar demo interactiva →</a>
         </div>
       </div>`).join("")}
     ${SOON_PORTFOLIOS.map(s => `
       <div class="section-title" style="--accent:${s.accent}">${s.title} <span class="soon-pill" style="margin-left:8px">en progreso</span></div>
       <div class="grid grid-3">
         ${s.items.map(i => `
-          <div class="card soon-card" style="--accent:${s.accent}">
-            <h3>${i}</h3>
+          <div class="card soon-card clickable" style="--accent:${s.accent}" onclick="location.hash='#/${s.slug}/${i.slug}'">
+            <h3>${i.name}</h3>
             <p>Próximamente con su página interactiva.</p>
           </div>`).join("")}
       </div>`).join("")}`;
@@ -618,13 +619,32 @@ function buildPfDiagram() {
   return s.join("");
 }
 
+function viewSoonProducto(id) {
+  const [r] = route();
+  const pf = SOON_PORTFOLIOS.find(s => s.slug === r);
+  const item = pf?.items.find(i => i.slug === id);
+  if (!item) return viewPortafolio();
+  return `
+    <a class="muted" href="#/portafolio" style="text-decoration:none">← ${pf.title}</a>
+    <div class="card" style="--accent:${pf.accent};margin-top:16px;max-width:640px">
+      <div class="card-kicker">${pf.title}</div>
+      <h2 class="page-title">${item.name}</h2>
+      <p class="page-sub"><span class="soon-pill">en progreso</span></p>
+      <div class="analogy" style="margin-top:4px"><span class="analogy-icon">🚧</span>
+        <div><strong>En construcción</strong>
+        <p>Esta solución tendrá su propia página interactiva con diagrama animado, analogía "Piénsalo así", objetivos y labs hands-on — igual que las de Application Security.</p></div>
+      </div>
+    </div>`;
+}
+
 function viewProducto(id) {
   const p = PRODUCTS.find(x => x.id === id);
-  if (!p || !LEARN[id]) return viewPortafolio();
+  if (!p || !LEARN[id]) return viewSoonProducto(id);
   const L = LEARN[id];
+  const [r] = route();
   const step = state.diagram?.product === id ? state.diagram.step : 0;
   return `
-    <a class="muted" href="#/portafolio" style="text-decoration:none">← Portafolio</a>
+    <a class="muted" href="#/portafolio" style="text-decoration:none">← ${PORTFOLIOS[r]?.title || "Portafolio"}</a>
     <div class="product-page">
       <div class="product-info">
         <div class="card-kicker" style="--accent:${p.accent}">${p.num} · Application Security</div>
@@ -778,14 +798,16 @@ document.addEventListener("click", e => {
 // ── Render + event wiring ────────────────────────────────────────────────────
 function markActiveNav() {
   const [r] = route();
-  $$(".nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === r));
+  const navR = PORTFOLIOS[r] ? "portafolio" : r;
+  $$(".nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === navR));
 }
 
 function render() {
-  const [r, arg] = route();
+  let [r, arg] = route();
+  if (r === "producto" && arg) { go(`${APPSEC}/${arg}`); return; } // compat rutas viejas
   const view = $("#view");
-  const views = { inicio: viewInicio, portafolio: viewPortafolio, flashcards: viewFlashcards, quiz: viewQuiz, labs: viewLabs, progreso: viewProgreso, pruebas: viewPruebas, producto: viewProducto };
-  view.innerHTML = views[r] ? views[r](arg) : viewInicio();
+  const views = { inicio: viewInicio, portafolio: viewPortafolio, flashcards: viewFlashcards, quiz: viewQuiz, labs: viewLabs, progreso: viewProgreso, pruebas: viewPruebas };
+  view.innerHTML = views[r] ? views[r](arg) : PORTFOLIOS[r] && arg ? viewProducto(arg) : viewInicio();
   markActiveNav();
   if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; }
   wire(r, arg);
@@ -798,7 +820,7 @@ function wire(r, arg) {
   if (r === "portafolio") {
     $$(".product-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
     $$(".pf-tile").forEach(t => {
-      t.addEventListener("click", () => go("producto/" + t.dataset.pid));
+      t.addEventListener("click", () => go(`${APPSEC}/${t.dataset.pid}`));
       t.addEventListener("mouseenter", () => {
         const p = PRODUCTS.find(x => x.id === t.dataset.pid);
         const cap = $("#pf-caption");
@@ -808,7 +830,7 @@ function wire(r, arg) {
     $$("#view .diagram").forEach(spawnPackets);
   }
 
-  if (r === "producto") {
+  if (PORTFOLIOS[r] && PRODUCTS.find(p => p.id === arg)) {
     const step = state.diagram?.product === arg ? state.diagram.step : 0;
     setDiagramStep(step);
   }

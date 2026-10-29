@@ -136,21 +136,45 @@ const QUICK_LINKS = [
   { id: "labs", label: "Labs", icon: "🧪", color: "#0051C3", desc: "Demos prácticas y topologías paso a paso" }
 ];
 
+// Portafolios y slugs para el routing (#/<portafolio>/<solucion>)
+const PORTFOLIOS = {
+  "application-security": { title: "Application Security", accent: "#F6821F" },
+  "cloudflare-one": { title: "Cloudflare One · Zero Trust · SASE", accent: "#00C2FF" },
+  "network-services": { title: "Network Services", accent: "#FBAD41" }
+};
+const APPSEC = "application-security";
+
 // Portafolios futuros — placeholders "en progreso"
 const SOON_PORTFOLIOS = [
   {
     id: "cfone",
+    slug: "cloudflare-one",
     title: "Cloudflare One · Zero Trust · SASE",
     short: "Cloudflare One",
     accent: "#00C2FF",
-    items: ["Access / ZTNA", "Secure Web Gateway", "CASB", "Data Loss Prevention", "Browser Isolation", "Digital Experience Monitoring"]
+    items: [
+      { name: "Access / ZTNA", slug: "access-ztna" },
+      { name: "Secure Web Gateway", slug: "secure-web-gateway" },
+      { name: "CASB", slug: "casb" },
+      { name: "Data Loss Prevention", slug: "dlp" },
+      { name: "Browser Isolation", slug: "browser-isolation" },
+      { name: "Digital Experience Monitoring", slug: "dem" }
+    ]
   },
   {
     id: "net",
+    slug: "network-services",
     title: "Network Services",
     short: "Network Services",
     accent: "#FBAD41",
-    items: ["Magic Transit", "Magic WAN", "Magic Firewall", "Cloudflare Tunnel", "Load Balancing", "Cloudflare DNS"]
+    items: [
+      { name: "Magic Transit", slug: "magic-transit" },
+      { name: "Magic WAN", slug: "magic-wan" },
+      { name: "Magic Firewall", slug: "magic-firewall" },
+      { name: "Cloudflare Tunnel", slug: "cloudflare-tunnel" },
+      { name: "Load Balancing", slug: "load-balancing" },
+      { name: "Cloudflare DNS", slug: "cloudflare-dns" }
+    ]
   }
 ];
 
