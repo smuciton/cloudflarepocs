@@ -75,21 +75,21 @@ function renderSidebar() {
           </div>
         </div>`).join("")}
     </div>
-    <div class="side-label">Más portafolios</div>
-    ${SOON_PORTFOLIOS.map((s, i) => `
-    <div class="section section-soon" data-section="${s.id}">
+    ${SOON_PORTFOLIOS.map(s => `
+    <div class="side-label">${s.title}</div>
+    ${s.items.map((it, i) => `
+    <div class="section section-soon" data-section="${s.id}-${it.slug}">
       <button class="section-head">
-        <span class="num" style="color:${s.accent}">${PRODUCTS.length + i + 1}.0</span>
-        <span>${s.short}</span>
-        <span class="obj-count">${s.items.length} objetivos</span>
+        <span class="num" style="color:${s.accent}">${i + 1}.0</span>
+        <span>${it.name}</span>
         <span class="soon-pill">en progreso</span>
         <span class="chev">▶</span>
       </button>
       <div class="section-body">
-        ${s.items.map((it, j) => `<a class="soon-item" href="#/${s.slug}/${it.slug}">${j + 1}. ${it.name}</a>`).join("")}
-        <a class="soon-note">🚧 En construcción — próximamente con actividades hands-on.</a>
+        <a href="#/${s.slug}/${it.slug}">Abrir página →</a>
+        <a class="soon-note">🚧 En construcción — actividades hands-on próximamente.</a>
       </div>
-    </div>`).join("")}`;
+    </div>`).join("")}`).join("")}`;
 
   $("#search-open").addEventListener("click", openPalette);
   $("#theme-btn").addEventListener("click", toggleTheme);
