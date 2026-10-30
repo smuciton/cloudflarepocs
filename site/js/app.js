@@ -472,7 +472,7 @@ function flowSpec(d) {
   const edges = d.sources.map((s, i) => ({
     id: `e-in${i}`, x1: 103, y1: sy[i], x2: 268,
     y2: d.sources.length === 1 ? 180 : (i === 0 ? 175 : 205),
-    cls: s.cls, label: s.packet, flood: s.flood
+    cls: s.cls, label: s.packet
   }));
   edges.push({ id: "e-dc", x1: 332, y1: 180, x2: mods[0].x - 3, y2: 180, cls: "good" });
   if (n === 2) edges.push({ id: "e-mm", x1: mods[0].x + bw + 3, y1: 180, x2: mods[1].x - 3, y2: 180, cls: "good" });
@@ -505,7 +505,7 @@ function buildDiagram(spec) {
   svg.push(`<text class="d-nettitle" x="432" y="90" text-anchor="middle">Cloudflare Global Network</text>`);
   for (const e of edges) {
     const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
-    svg.push(`<path data-did="${e.id}" ${e.flood ? 'data-flood="1"' : ""} class="d-edge ${e.cls}" d="M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}"/>`);
+    svg.push(`<path data-did="${e.id}" class="d-edge ${e.cls}" d="M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}"/>`);
     if (e.label) svg.push(`<text data-did="${e.id}" class="d-elabel ${e.cls}" x="${mx}" y="${my - 8}" text-anchor="middle">${e.label}</text>`);
   }
   svg.push(`<g data-did="dc" class="d-dc">
@@ -644,7 +644,7 @@ function viewProducto(id) {
   if (!p || !LEARN[id]) return viewSoonProducto(id);
   const L = LEARN[id];
   const [r] = route();
-  const step = state.diagram?.product === id ? state.diagram.step : 0;
+  if (state.diagram?.feat != null) state.diagram = { product: id, feat: null, step: 0 };
   return `
     <a class="muted" href="#/portafolio" style="text-decoration:none">← ${PORTFOLIOS[r]?.title || "Portafolio"}</a>
     <div class="product-page">
@@ -707,17 +707,15 @@ function spawnPackets(svg) {
   svg.querySelectorAll(".d-edge.on").forEach(edge => {
     const d = edge.getAttribute("d");
     const bad = edge.classList.contains("bad");
-    // Ráfaga densa si es flood (abuso continuo); si no, pocos paquetes
-    const flood = edge.dataset.flood === "1";
-    const count = flood ? 12 : bad ? 4 : 2;
-    const dur = flood ? "0.85s" : bad ? "1.1s" : "1.6s";
+    const count = bad ? 4 : 2;
+    const dur = bad ? "1.1s" : "1.6s";
     for (let k = 0; k < count; k++) {
       const pkt = document.createElementNS(SVGNS, "circle");
-      pkt.setAttribute("r", flood ? "3.2" : k === 0 ? "5.5" : "4");
+      pkt.setAttribute("r", k === 0 ? "5.5" : "4");
       pkt.setAttribute("class", `d-packet ${bad ? "bad" : "good"}`);
       const am = document.createElementNS(SVGNS, "animateMotion");
       am.setAttribute("dur", dur);
-      am.setAttribute("begin", `${-k * (flood ? 0.07 : bad ? 0.35 : 0.7)}s`);
+      am.setAttribute("begin", `${-k * (bad ? 0.35 : 0.7)}s`);
       am.setAttribute("repeatCount", "indefinite");
       am.setAttribute("path", d);
       pkt.appendChild(am);
@@ -744,11 +742,17 @@ function activeDiagram(id) {
   return (f != null && L?.features?.[f]?.d) ? L.features[f].d : L?.diagram;
 }
 
+function activeScene(id) {
+  const L = LEARN[id], f = state.diagram?.feat;
+  return f != null ? L?.features?.[f]?.scene : L?.scene;
+}
+
 function diagramSlotHTML(id) {
+  const sc = activeScene(id);
+  if (sc) return `<div class="scene-wrap" data-scene="${sc}"></div>`;
   const d = activeDiagram(id);
   if (!d) return "";
   return `${buildDiagram(d)}
-    <div class="rate-meter"><div class="rm-top"><span class="rm-label"></span><span class="rm-num"></span></div><div class="rm-track"><div class="rm-fill"></div></div></div>
     <div class="step-caption"></div>
     ${diagramControlsHTML(d.steps.length)}
     <div class="diagram-legend">
@@ -760,6 +764,15 @@ function diagramSlotHTML(id) {
 function renderDiagramSlot(id) {
   const el = $("#diagram-slot");
   if (el) el.innerHTML = diagramSlotHTML(id);
+  mountSlot(id);
+}
+
+function mountSlot(id) {
+  state.scene?.destroy();
+  state.scene = null;
+  const el = $("#diagram-slot .scene-wrap");
+  if (el) state.scene = mountScene(el.dataset.scene, el);
+  else setDiagramStep(state.diagram?.product === id ? state.diagram.step : 0);
 }
 
 function setDiagramStep(i) {
@@ -774,25 +787,6 @@ function setDiagramStep(i) {
   $$(".step-dot").forEach((d, j) => d.classList.toggle("on", j === state.diagram.step));
   $$(".step-caption").forEach(c => c.innerHTML = `<strong>${state.diagram.step + 1}. ${s.t}</strong><p>${s.d}</p>`);
   $$(".diagram").forEach(spawnPackets);
-  // HUD de umbral (ej. rate limiting): el medidor se llena en tiempo real
-  $$(".rate-meter").forEach(m => {
-    if (!s.m) { m.classList.remove("show"); return; }
-    m.classList.add("show");
-    const fill = m.querySelector(".rm-fill"), num = m.querySelector(".rm-num"), lbl = m.querySelector(".rm-label");
-    const target = s.m.value, max = s.m.max;
-    lbl.textContent = s.m.label;
-    m.classList.toggle("hit", target >= max);
-    const t0 = performance.now(), dur = 1400;
-    const tick = now => {
-      const p = Math.min(1, (now - t0) / dur);
-      const v = Math.round((state._ratePrev || 0) + (target - (state._ratePrev || 0)) * p);
-      num.textContent = `${v}/${max}`;
-      fill.style.width = `${Math.min(100, (v / max) * 100)}%`;
-      if (p < 1 && state.diagram?.step === (i % n + n) % n) requestAnimationFrame(tick);
-      else if (p >= 1) state._ratePrev = target;
-    };
-    requestAnimationFrame(tick);
-  });
 }
 
 function syncPlayBtns() {
@@ -878,6 +872,7 @@ function render() {
   markActiveNav();
   if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; }
   wire(r, arg);
+  if (!$("#diagram-slot")) { state.scene?.destroy(); state.scene = null; }
   if (r === "portafolio" && arg) $("#p-" + arg)?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (r === "labs" && arg) $("#" + arg)?.scrollIntoView({ behavior: "smooth", block: "start" });
   window.scrollTo({ top: 0 });
@@ -898,8 +893,7 @@ function wire(r, arg) {
   }
 
   if (PORTFOLIOS[r] && PRODUCTS.find(p => p.id === arg)) {
-    const step = state.diagram?.product === arg ? state.diagram.step : 0;
-    setDiagramStep(step);
+    mountSlot(arg);
     $$(".feature-head").forEach(h => h.addEventListener("click", () => {
       const item = h.parentElement;
       const i = +item.dataset.f;
@@ -912,7 +906,6 @@ function wire(r, arg) {
         state.diagram = { product: arg, feat: i, step: 0 };
       }
       renderDiagramSlot(arg);
-      setDiagramStep(0);
     }));
   }
   if (r === "flashcards") {

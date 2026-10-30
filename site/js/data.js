@@ -500,22 +500,7 @@ const LEARN = {
           ] } },
       { icon: "⏱️", name: "Rate Limiting Rules", blurb: "Cuenta peticiones por característica y actúa al superar el umbral.",
         detail: "Contadores por IP, sesión, ASN, header o fingerprint en ventanas configurables. Contra fuerza bruta en login, abuso de API y scraping: acciones block, managed challenge o log. Complexity-based counting frena bots que rotan IPs.",
-        d: { type: "flow",
-          sources: [
-            { icon: "🧑", label: "Usuario normal", cls: "good", packet: "2 req/s" },
-            { icon: "🔁", label: "Script abusivo", cls: "bad", packet: "500 req/s", flood: true }
-          ],
-          module: "Rate Limit", moduleSub: "umbral: 100 req/min",
-          targets: [
-            { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
-            { icon: "⏱️", label: "429 · Límite alcanzado", cls: "bad" }
-          ],
-          steps: [
-            { t: "El script no para de intentar", d: "El usuario normal hace 2 req/s; el script abusivo dispara peticiones una tras otra contra el login — fíjate en el flujo rojo.", on: ["s0", "s1", "e-in0", "e-in1"], m: { label: "Requests contados", value: 15, max: 100 } },
-            { t: "El edge cuenta cada intento", d: "El contador por IP/sesión/fingerprint sube con cada petición que llega — el flood sigue entrando.", on: ["edge", "dc", "e-dc", "e-in1"], m: { label: "Requests contados", value: 65, max: 100 } },
-            { t: "¡Umbral alcanzado!", d: "El contador toca 100/minuto → la regla se dispara y se aplica la acción: block, challenge o log.", on: ["e-dc", "mod", "e-in1"], m: { label: "¡Umbral alcanzado!", value: 100, max: 100 } },
-            { t: "El flood se estrella", d: "Cada intento del script se estampa contra el edge y recibe 429 — el origen solo ve el ritmo del usuario normal.", on: ["e-out0", "chk", "t0", "e-out1", "t1", "e-in1"], m: { label: "Bloqueado · 429", value: 100, max: 100 } }
-          ] } },
+        scene: "ratelimit" },
       { icon: "📤", name: "Response Rules", blurb: "Personaliza la respuesta de bloqueo que ve el usuario.",
         detail: "Define código de estado, content-type y cuerpo de la respuesta de bloqueo — HTML con tu marca o JSON consistente para clientes de API, en vez de la página genérica. Útil para que el bloqueo 'hable el idioma' de tu app.",
         d: { type: "flow",
@@ -665,6 +650,7 @@ const LEARN = {
     }
   },
   ratelimit: {
+    scene: "ratelimit",
     analogy: "Es como la fila de una taquilla: cada persona puede comprar un número limitado de boletos por minuto. Quien intenta comprar de más, simplemente espera fuera.",
     how: "Rate Limiting cuenta peticiones por las características que definas — IP, sesión, ASN, JA3/JA4, header — y aplica la acción configurada (block, challenge, log) cuando se supera el umbral. Es la herramienta contra fuerza bruta, abuso de API y scraping agresivo.",
     diagram: {
