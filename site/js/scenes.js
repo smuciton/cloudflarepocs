@@ -1317,7 +1317,7 @@ function mountManagedScene(root) {
 
   const spawn = (kind, t) => {
     const n = ++S.n;
-    const p = { kind, n, ip: kind === "usr" ? "" : randIp(), leg: "in", path: PATH[kind === "usr" ? "usr" : "bot"], t0: t, dur: kind === "usr" ? 1.2 : 0.95 };
+    const p = { kind, n, ip: kind === "usr" ? `198.51.100.${10 + Math.floor(Math.random() * 80)}` : randIp(), leg: "in", path: PATH[kind === "usr" ? "usr" : "bot"], t0: t, dur: kind === "usr" ? 1.2 : 0.95 };
     p.g = kind === "usr" ? kit.pill("good", "GET", 40) : kind === "sqli" ? kit.pill("exploit", `SQLi #${n}`, 62) : kind === "mut" ? kit.pill("exploit", `🧬 #${n}`, 52) : kit.pill("exploit", `php2shell #${n}`, 84);
     S.packets.push(p);
     if (kind !== "usr") count("sent");
@@ -1362,14 +1362,21 @@ function mountManagedScene(root) {
     if (p.leg === "out") {
       S.origin++;
       originN.textContent = S.origin;
-      if (p.kind === "sqli") {
-        S.lastLeak = ct;
-        kit.flash(originG, "alarm", 500);
+      if (p.kind === "usr") {
+        kit.logReq(p.ip, "GET /productos", "200 → origen", "ok");
         kit.drop(p);
         return;
       }
-      if (p.kind !== "usr" && !S.patched) {
-        // El origen vulnerable responde filtrando memoria
+      if (p.kind === "sqli") {
+        S.lastLeak = ct;
+        kit.flash(originG, "alarm", 500);
+        kit.logReq(p.ip, `GET /item?id=1' OR 1=1-- #${p.n}`, "200 ⚠ SQLi en el origen", "warn");
+        kit.drop(p);
+        return;
+      }
+      if (!S.patched) {
+        // El origen vulnerable responde 200 y filtra memoria en esa misma respuesta
+        kit.logReq(p.ip, `POST /index.php #${p.n}`, "200 ⚠ exploit en el origen", "warn");
         S.lastLeak = ct;
         kit.flash(originG, "alarm", 500);
         kit.relabel(p.g, "warn", "💾 fuga", 52);
