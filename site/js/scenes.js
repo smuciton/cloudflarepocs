@@ -908,8 +908,25 @@ function mountCustomRulesScene(root) {
 // ── Escena: Response Rules ──────────────────────────────────────────────────
 function mountResponseScene(root) {
   const REQ = [[184, 186], [250, 186]], RESP = [[250, 212], [184, 212]];
-  const COMBOS = [["browser", false], ["browser", true], ["api", false], ["api", true]];
+  const FWD = [[555, 190], [646, 190]], OBACK = [[646, 214], [555, 214]];
+  const COMBOS = {
+    headers: [["browser", false], ["browser", true]],
+    block: [["browser", false], ["browser", true], ["api", false], ["api", true]]
+  };
+  const PATHS = { headers: "/productos", block: "/admin" };
   const SCREENS = {
+    "headers-false": {
+      lines: [["brand", "🛍 ACME · Productos"], ["p", "200 OK · página cargada"], ["err", "Server: Apache/2.4.49"], ["err", "X-Powered-By: PHP/7.2"], ["s", "sin HSTS · sin X-Frame-Options"]],
+      banner: ["bad", "⚠ Expones tu stack"],
+      cap: ["⚠ La página carga, pero filtra información",
+        "Cualquiera ve que corres <b>Apache 2.4.49</b> y <b>PHP 7.2</b>. Un atacante cruza esas versiones con CVEs conocidos (Apache 2.4.49 → CVE-2021-41773, path traversal) y va directo a explotarlas. Además falta HSTS y protección contra clickjacking."]
+    },
+    "headers-true": {
+      lines: [["brand", "🛍 ACME · Productos"], ["p", "200 OK · página cargada"], ["s", "Server: (oculto)"], ["ok", "HSTS: max-age=31536000"], ["ok", "X-Frame-Options: DENY"]],
+      banner: ["good", "✅ Headers seguros"],
+      cap: ["✅ Misma página, respuesta endurecida",
+        "La Response Rule quitó <b>Server</b> y <b>X-Powered-By</b> y agregó <b>HSTS</b> y <b>X-Frame-Options</b> en el edge, sin tocar el código ni el servidor de origen."]
+    },
     "browser-false": {
       lines: [["h", "Sorry, you have been blocked"], ["p", "You are unable to access"], ["p", "cloudflarepocs.com"], ["s", "Cloudflare Ray ID: {ray}"], ["s", "Security by Cloudflare"]],
       banner: ["neutral", "Página genérica de Cloudflare"],
@@ -931,20 +948,20 @@ function mountResponseScene(root) {
       cap: ["✅ La app entiende el bloqueo", "Recibe JSON con el formato de tu API, lo interpreta y muestra un mensaje útil. Puedes tener una respuesta JSON para /api y otra HTML para la web."]
     }
   };
-  const cfg = { client: "browser", custom: false, auto: true, combo: 0 };
+  const cfg = { mode: "headers", client: "browser", custom: false, auto: true, combo: 0 };
   const lineY = i => 106 + i * 22;
 
   const svg = sceneFrame({
     edge: [250, 44, 305, 300],
     outer: `
-      ${wireLine("req", REQ)}${wireLine("back on", RESP)}${wireLine("out", [[555, 200], [646, 200]])}
-      <text class="rl-wlabel" x="217" y="178" text-anchor="middle">GET /admin</text>
+      ${wireLine("req", REQ)}${wireLine("back on", RESP)}${wireLine("out", FWD)}${wireLine("oback", OBACK)}
+      <text class="rl-wlabel sc-reqlabel" x="217" y="168" text-anchor="middle"></text>
       <g class="sc-device browser">
         <g class="sc-dev-browser">
           <rect class="sc-dev" x="16" y="56" width="166" height="268" rx="8"/>
           <rect class="sc-dev-bar" x="16" y="56" width="166" height="22" rx="8"/>
           <circle class="sc-dot" cx="28" cy="67" r="3"/><circle class="sc-dot" cx="37" cy="67" r="3"/><circle class="sc-dot" cx="46" cy="67" r="3"/>
-          <text class="sc-url" x="56" y="70">cloudflarepocs.com/admin</text>
+          <text class="sc-url" x="56" y="70"></text>
         </g>
         <g class="sc-dev-phone">
           <rect class="sc-dev" x="34" y="50" width="130" height="282" rx="20"/>
@@ -955,7 +972,7 @@ function mountResponseScene(root) {
         <g class="sc-banner"><rect x="28" y="266" width="142" height="26" rx="6"/><text x="99" y="283" text-anchor="middle"></text></g>
         <text class="sc-devlabel" x="99" y="350" text-anchor="middle"></text>
       </g>
-      ${originBox(648, 110, 180, "/admin")}`,
+      ${originBox(648, 110, 180, "")}`,
     inner: `
       <g class="sc-card sc-waf"><rect x="264" y="84" width="277" height="40" rx="8"/>
         <text class="rl-rule-t" x="276" y="100">🛡 WAF Custom Rule</text>
@@ -963,17 +980,21 @@ function mountResponseScene(root) {
       </g>
       <text class="sc-arrow" x="402" y="138" text-anchor="middle">▼</text>
       <g class="sc-card sc-rr"><rect x="264" y="144" width="277" height="78" rx="8"/>
-        <text class="rl-rule-t" x="276" y="161">📤 Response Rule</text>
+        <text class="rl-rule-t sc-rr-t" x="276" y="161"></text>
         <text class="sc-pill-t" x="529" y="160" text-anchor="end"></text>
         ${[0, 1, 2].map(i => `<text class="sc-mono" data-rr="${i}" x="276" y="${178 + i * 16}"></text>`).join("")}
       </g>
-      <g class="sc-gen"><rect x="264" y="232" width="277" height="66" rx="8"/>
-        <text class="sc-insp-l" x="276" y="246">📦 RESPUESTA GENERADA EN EL EDGE</text>
-        ${[0, 1, 2].map(i => `<text class="sc-gen-l" data-g="${i}" x="276" y="${262 + i * 14}"></text>`).join("")}
+      <g class="sc-gen"><rect x="264" y="230" width="277" height="84" rx="8"/>
+        <text class="sc-insp-l sc-gen-t" x="276" y="244"></text>
+        ${[0, 1, 2, 3].map(i => `<text class="sc-gen-l" data-g="${i}" x="276" y="${260 + i * 14}"></text>`).join("")}
       </g>`
   });
   const controls = `
-    <div class="rl-controls sc-seg"><span class="sc-seg-l">Cliente</span>
+    <div class="rl-controls sc-seg"><span class="sc-seg-l">Caso de uso</span>
+      <button class="btn btn-sm" data-mode="headers">🛡 Headers seguros · pasa al origen</button>
+      <button class="btn btn-sm" data-mode="block">🧱 Bloqueo con tu marca</button>
+    </div>
+    <div class="rl-controls sc-seg sc-clientrow"><span class="sc-seg-l">Cliente</span>
       <button class="btn btn-sm" data-client="browser">🌐 Navegador</button>
       <button class="btn btn-sm" data-client="api">📱 App / API</button>
     </div>
@@ -986,22 +1007,43 @@ function mountResponseScene(root) {
   const kit = sceneKit(root, { svg, controls });
   const device = kit.q(".sc-device"), lineEls = kit.qa(".sc-l"), banner = kit.q(".sc-banner"), bannerT = kit.q(".sc-banner text");
   const devLabel = kit.q(".sc-devlabel"), wafCard = kit.q(".sc-waf"), rrCard = kit.q(".sc-rr"), rrPill = kit.q(".sc-pill-t");
-  const rrLines = kit.qa("[data-rr]"), genLines = kit.qa("[data-g]"), autoBox = kit.q("[data-auto]");
-  let S = { t: 0, k: 0, packets: [] };
+  const rrTitle = kit.q(".sc-rr-t"), rrLines = kit.qa("[data-rr]"), genTitle = kit.q(".sc-gen-t"), genLines = kit.qa("[data-g]");
+  const autoBox = kit.q("[data-auto]"), clientRow = kit.q(".sc-clientrow"), urlEl = kit.q(".sc-url"), reqLabel = kit.q(".sc-reqlabel");
+  const originN = kit.q('[data-o="n"]'), originS = kit.q('[data-o="s"]'), originSub = kit.q(".sc-origin .d-cust-s"), originBoxEl = kit.q(".sc-origin > rect");
+  let S = { t: 0, k: 0, packets: [], origin: 0 };
 
-  const key = () => `${cfg.client}-${cfg.custom}`;
-  const rrText = () => cfg.custom
-    ? ["status_code: 403", `content_type: ${cfg.client === "api" ? "application/json" : "text/html"}`, `body: ${cfg.client === "api" ? '{"error":"forbidden",…}' : "plantilla ACME (HTML)"}`]
-    : ["— sin Response Rule —", "Cloudflare usa su página", "de bloqueo por defecto"];
-  const genText = () => cfg.custom && cfg.client === "api"
-    ? ["HTTP/1.1 403 Forbidden", "content-type: application/json", `{"error":"forbidden","ray":"${S.ray}"}`]
-    : ["HTTP/1.1 403 Forbidden", "content-type: text/html", cfg.custom ? "<html> plantilla ACME …" : "<!DOCTYPE html> página genérica…"];
+  const isHeaders = () => cfg.mode === "headers";
+  const key = () => (isHeaders() ? `headers-${cfg.custom}` : `${cfg.client}-${cfg.custom}`);
+  const rrText = () => {
+    if (isHeaders()) return cfg.custom
+      ? ["remove: Server, X-Powered-By", "set: Strict-Transport-Security", "set: X-Frame-Options: DENY"]
+      : ["— sin Response Rule —", "los headers del origen", "pasan tal cual al cliente"];
+    return cfg.custom
+      ? ["status_code: 403", `content_type: ${cfg.client === "api" ? "application/json" : "text/html"}`, `body: ${cfg.client === "api" ? '{"error":"forbidden",…}' : "plantilla ACME (HTML)"}`]
+      : ["— sin Response Rule —", "Cloudflare usa su página", "de bloqueo por defecto"];
+  };
+  const genText = () => {
+    if (isHeaders()) return cfg.custom
+      ? [["", "HTTP/1.1 200 OK"], ["del", "server: Apache/2.4.49"], ["del", "x-powered-by: PHP/7.2"], ["add", "+ HSTS · + X-Frame-Options: DENY"]]
+      : [["", "HTTP/1.1 200 OK"], ["leak", "server: Apache/2.4.49"], ["leak", "x-powered-by: PHP/7.2"], ["dim", "(sin headers de seguridad)"]];
+    const json = cfg.custom && cfg.client === "api";
+    return [["", "HTTP/1.1 403 Forbidden"], ["", `content-type: ${json ? "application/json" : "text/html"}`],
+      ["", json ? `{"error":"forbidden","ray":"${S.ray}"}` : cfg.custom ? "<html> plantilla ACME …" : "<!DOCTYPE html> página genérica…"], ["", ""]];
+  };
 
   const sync = () => {
+    if (isHeaders()) cfg.client = "browser";
     device.setAttribute("class", `sc-device ${cfg.client}`);
     devLabel.textContent = cfg.client === "api" ? "📱 App móvil (consume tu API)" : "🌐 Navegador web";
+    urlEl.textContent = `cloudflarepocs.com${PATHS[cfg.mode]}`;
+    reqLabel.innerHTML = `<tspan x="217" dy="0">GET</tspan><tspan x="217" dy="10">${PATHS[cfg.mode]}</tspan>`;
+    originSub.textContent = PATHS[cfg.mode];
+    clientRow.style.display = isHeaders() ? "none" : "";
+    kit.segment("data-mode", cfg.mode);
     kit.segment("data-client", cfg.client);
     kit.segment("data-custom", cfg.custom);
+    rrTitle.textContent = isHeaders() ? "📤 Response Rule · headers" : "📤 Response Rule · bloqueo";
+    genTitle.textContent = isHeaders() ? "📦 RESPUESTA QUE RECIBE EL CLIENTE" : "📦 RESPUESTA GENERADA EN EL EDGE";
     rrCard.classList.toggle("off", !cfg.custom);
     rrPill.textContent = cfg.custom ? "ACTIVA" : "DESACTIVADA";
     rrPill.setAttribute("class", `sc-pill-t ${cfg.custom ? "on" : "off"}`);
@@ -1011,35 +1053,89 @@ function mountResponseScene(root) {
   const clearScreen = () => {
     lineEls.forEach(e => { e.setAttribute("class", "sc-l"); e.textContent = ""; });
     banner.setAttribute("class", "sc-banner");
-    genLines.forEach(e => { e.classList.remove("on"); e.textContent = ""; });
+    genLines.forEach(e => { e.setAttribute("class", "sc-gen-l"); e.textContent = ""; });
     rrCard.classList.remove("hl");
+    originS.textContent = isHeaders() ? "esperando petición…" : "🔒 No le llega nada";
+    originS.setAttribute("class", "sc-origin-s");
   };
   const startCycle = (t, advance) => {
+    const combos = COMBOS[cfg.mode];
     if (advance && cfg.auto) {
-      cfg.combo = (cfg.combo + 1) % COMBOS.length;
-      [cfg.client, cfg.custom] = COMBOS[cfg.combo];
+      cfg.combo = (cfg.combo + 1) % combos.length;
+      [cfg.client, cfg.custom] = combos[cfg.combo];
     }
     S.packets.forEach(p => p.g.remove());
     Object.assign(S, { c0: t, ei: 0, k: S.k + 1, packets: [], ray: Math.random().toString(16).slice(2, 10) });
-    clearScreen();
     sync();
+    clearScreen();
+  };
+  const send = (cls, label, path, t) => {
+    S.packets.push({ g: kit.pill(cls, label, Math.max(56, Math.round(18 + label.length * 5.4))), path, t0: t, dur: 0.7 });
   };
   const showLine = i => {
     const [cls, txt] = SCREENS[key()].lines[i];
     lineEls[i].setAttribute("class", `sc-l ${cls} on`);
     lineEls[i].textContent = txt.replace("{ray}", S.ray);
   };
-  const EVENTS = [
+  const showGen = i => {
+    const [cls, txt] = genText()[i];
+    genLines[i].setAttribute("class", `sc-gen-l ${cls} on`);
+    genLines[i].textContent = txt;
+  };
+  const finish = (res, logCls) => {
+    const sc = SCREENS[key()];
+    banner.setAttribute("class", `sc-banner ${sc.banner[0]} on`);
+    bannerT.textContent = sc.banner[1];
+    kit.caption(`c${S.k}z`, sc.cap[0], sc.cap[1]);
+    kit.logReq(`ray ${S.ray}`, `${cfg.client === "api" ? "app" : "web"} GET ${PATHS[cfg.mode]}`, res, logCls);
+  };
+  const who = () => (cfg.client === "api" ? "📱 La app" : "🌐 El navegador");
+
+  // Caso 1: la petición es legítima, llega al origen y la Response Rule reescribe los headers de la respuesta
+  const HEADERS_EVENTS = [
     [0.05, t => {
-      S.packets.push({ g: kit.pill("neutral", "GET /admin", 66), path: REQ, t0: t, dur: 0.7 });
-      kit.caption(`c${S.k}a`, `${cfg.client === "api" ? "📱 La app" : "🌐 El navegador"} pide /admin`,
-        "La petición viaja al edge de Cloudflare, como cualquier otra.");
+      send("neutral", "GET /productos", REQ, t);
+      kit.caption(`c${S.k}a`, `${who()} pide /productos`, "Una petición normal de un cliente legítimo viaja al edge de Cloudflare.");
+    }],
+    [0.78, t => {
+      kit.flash(wafCard, "pass", 900);
+      kit.caption(`c${S.k}b`, "✅ El WAF la deja pasar", "<b>/productos</b> no coincide con la regla <code>/admin*</code>, así que la petición sigue hacia tu origen.");
+      send("neutral", "GET /productos", FWD, t);
+    }],
+    [1.5, t => {
+      S.origin++;
+      originN.textContent = S.origin;
+      originS.textContent = "✓ respondió 200";
+      originBoxEl.animate?.([{ fill: "#BFDBFE" }, { fill: "#EFF6FF" }], { duration: 400 });
+      kit.caption(`c${S.k}c`, "🖥 Tu origen responde 200",
+        "Responde con todos sus headers, incluidos <b>Server: Apache/2.4.49</b> y <b>X-Powered-By: PHP/7.2</b>: pistas gratis para un atacante.");
+      send("warn", "200 + headers", OBACK, t);
+    }],
+    [2.25, () => {
+      rrCard.classList.toggle("hl", cfg.custom);
+      if (cfg.custom) kit.caption(`c${S.k}d`, "📤 La Response Rule reescribe los headers",
+        "En el edge se <b>quitan</b> Server y X-Powered-By y se <b>agregan</b> HSTS y X-Frame-Options. Tu servidor no cambia.");
+      else kit.caption(`c${S.k}d`, "📄 Sin Response Rule: los headers pasan tal cual",
+        "Cloudflare entrega la respuesta del origen sin modificarla, con todo lo que revela.");
+    }],
+    ...[0, 1, 2, 3].map(i => [2.45 + i * 0.18, () => showGen(i)]),
+    [3.25, t => send(cfg.custom ? "good" : "warn", cfg.custom ? "200 limpio" : "200 + Server", RESP, t)],
+    ...[0, 1, 2, 3, 4].map(i => [4.0 + i * 0.2, () => showLine(i)]),
+    [5.05, () => finish(cfg.custom ? "200 · headers limpios" : "200 · Server expuesto", cfg.custom ? "ok" : "warn")],
+    [8.4, t => startCycle(t, true)]
+  ];
+
+  // Caso 2: el WAF bloquea /admin y la Response Rule decide qué le responde el edge al cliente
+  const BLOCK_EVENTS = [
+    [0.05, t => {
+      send("neutral", "GET /admin", REQ, t);
+      kit.caption(`c${S.k}a`, `${who()} pide /admin`, "La petición viaja al edge de Cloudflare, como cualquier otra.");
     }],
     [0.78, () => {
       kit.impact(REQ[1]);
       kit.flash(wafCard, "flash", 900);
       kit.caption(`c${S.k}b`, "🛡 El WAF bloquea la petición",
-        "Una regla del WAF coincide y decide bloquear. La pregunta ahora es: <b>¿qué le respondemos al cliente?</b>");
+        "Una regla del WAF coincide y decide bloquear, así que nunca llega a tu origen. La pregunta ahora es: <b>¿qué le respondemos al cliente?</b>");
     }],
     [1.2, () => {
       rrCard.classList.toggle("hl", cfg.custom);
@@ -1048,45 +1144,47 @@ function mountResponseScene(root) {
       else kit.caption(`c${S.k}c`, "📄 Sin Response Rule: respuesta por defecto",
         "Cloudflare devuelve su página HTML estándar de bloqueo, igual para un navegador que para una app.");
     }],
-    ...[0, 1, 2].map(i => [1.45 + i * 0.22, () => { genLines[i].textContent = genText()[i]; genLines[i].classList.add("on"); }]),
+    ...[0, 1, 2].map(i => [1.45 + i * 0.22, () => showGen(i)]),
     [2.2, t => {
       const json = cfg.custom && cfg.client === "api";
-      S.packets.push({ g: kit.pill(json || cfg.custom ? "good" : "bad", json ? "403 JSON" : "403 HTML", 66), path: RESP, t0: t, dur: 0.7 });
+      send(cfg.custom ? "good" : "bad", json ? "403 JSON" : "403 HTML", RESP, t);
     }],
     ...[0, 1, 2, 3, 4].map(i => [2.95 + i * 0.2, () => showLine(i)]),
     [4.0, () => {
-      const sc = SCREENS[key()];
-      banner.setAttribute("class", `sc-banner ${sc.banner[0]} on`);
-      bannerT.textContent = sc.banner[1];
-      kit.caption(`c${S.k}z`, sc.cap[0], sc.cap[1]);
-      kit.logReq(`ray ${S.ray}`, `${cfg.client === "api" ? "app" : "web"} GET /admin`,
-        `403 ${cfg.custom && cfg.client === "api" ? "application/json" : "text/html"} · ${cfg.custom ? "Response Rule" : "default"}`,
-        sc.banner[0] === "bad" ? "bad" : sc.banner[0] === "good" ? "ok" : "warn");
+      const json = cfg.custom && cfg.client === "api", b = SCREENS[key()].banner[0];
+      finish(`403 ${json ? "application/json" : "text/html"} · ${cfg.custom ? "Response Rule" : "default"}`, b === "bad" ? "bad" : b === "good" ? "ok" : "warn");
     }],
     [7.4, t => startCycle(t, true)]
   ];
 
   const reset = () => {
-    cfg.auto = true;
-    cfg.combo = 0;
-    [cfg.client, cfg.custom] = COMBOS[0];
-    kit.q('[data-o="s"]').textContent = "🔒 No le llega nada";
-    kit.log("Escuchando respuestas de bloqueo…", "hint");
+    Object.assign(cfg, { mode: "headers", auto: true, combo: 0 });
+    [cfg.client, cfg.custom] = COMBOS.headers[0];
+    S.origin = 0;
+    originN.textContent = "0";
+    kit.log("Escuchando respuestas en el edge…", "hint");
     startCycle(0, false);
   };
   const tick = t => {
     S.t = t;
-    while (S.ei < EVENTS.length && t - S.c0 >= EVENTS[S.ei][0]) EVENTS[S.ei++][1](t);
+    const ev = isHeaders() ? HEADERS_EVENTS : BLOCK_EVENTS;
+    while (S.ei < ev.length && t - S.c0 >= ev[S.ei][0]) ev[S.ei++][1](t);
     S.packets = kit.move(S.packets, t, p => kit.drop(p));
   };
 
   root.addEventListener("click", e => {
-    const c = e.target.closest("[data-client]"), r = e.target.closest("[data-custom]");
-    if (!c && !r) return;
-    if (c) cfg.client = c.dataset.client;
-    if (r) cfg.custom = r.dataset.custom === "true";
-    cfg.auto = false;
-    cfg.combo = COMBOS.findIndex(([a, b]) => a === cfg.client && b === cfg.custom);
+    const m = e.target.closest("[data-mode]"), c = e.target.closest("[data-client]"), r = e.target.closest("[data-custom]");
+    if (!m && !c && !r) return;
+    if (m) {
+      cfg.mode = m.dataset.mode;
+      [cfg.client, cfg.custom] = COMBOS[cfg.mode][0];
+      cfg.combo = 0;
+    } else {
+      if (c) cfg.client = c.dataset.client;
+      if (r) cfg.custom = r.dataset.custom === "true";
+      cfg.auto = false;
+      cfg.combo = Math.max(0, COMBOS[cfg.mode].findIndex(([a, b]) => a === cfg.client && b === cfg.custom));
+    }
     startCycle(S.t, false);
   });
   autoBox.addEventListener("change", () => { cfg.auto = autoBox.checked; });

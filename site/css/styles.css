@@ -1114,3 +1114,12 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
   .scene-wrap.scene-full { display: block; }
   .scene-full > .scene-side { height: auto; }
 }
+
+/* ---------- Response Rules: caso "headers seguros" ---------- */
+.sc-card.pass > rect { fill: #ECFDF5; stroke: #16A34A; stroke-width: 2.2; }
+.sc-l.ok { fill: #16A34A; font: 700 8.6px var(--font-mono); }
+.sc-gen-l.del { fill: #F87171; text-decoration: line-through; }
+.sc-gen-l.add { fill: #4ADE80; font-weight: 700; }
+.sc-gen-l.leak { fill: #FBBF24; }
+.sc-gen-l.dim { fill: #64748B; font-style: italic; }
+.sc-url { font-size: 7.2px; }
