@@ -1078,3 +1078,5 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-rulenote { fill: #B45309; font: 600 8.8px var(--font-body); }
 .rl-controls .sc-speed { margin-left: auto; max-width: 300px; }
 .rl-controls .sc-speed b { min-width: 36px; }
+.sc-card.inactive > rect { stroke: #94A3B8; stroke-dasharray: 5 4; fill: #F8FAFC; }
+.sc-card.inactive .sc-then { fill: #64748B; }

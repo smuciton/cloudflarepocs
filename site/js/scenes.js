@@ -694,9 +694,13 @@ function mountCustomRulesScene(root) {
   const originN = kit.q('[data-o="n"]'), originBoxEl = kit.q(".sc-origin > rect");
   let S;
 
+  const ruleActive = () => cfg.enabled.some(Boolean);
   const syncCfg = () => {
     kit.segment("data-act", cfg.action);
-    thenT.textContent = `then → ${ACTIONS[cfg.action].label.toLowerCase()}`;
+    thenT.textContent = ruleActive()
+      ? `then → ${ACTIONS[cfg.action].label.toLowerCase()}`
+      : "regla inactiva → sin acción";
+    kit.q(".sc-card").classList.toggle("inactive", !ruleActive());
     condEls.forEach((g, i) => g.classList.toggle("off", !cfg.enabled[i]));
   };
   const setBadge = (i, v) => {
@@ -762,7 +766,8 @@ function mountCustomRulesScene(root) {
       p.leg = "out";
       p.path = EXIT;
       p.dur = 0.75;
-      kit.logReq(`${LANES[r.lane].who} ${r.cc} · ${r.score}`, r.path, c.result ? `${a.res} · match` : "200 · sin match", c.result ? "warn" : "ok");
+      kit.logReq(`${LANES[r.lane].who} ${r.cc} · ${r.score}`, r.path,
+        c.result ? `${a.res} · match` : c.inactive ? "200 · regla inactiva" : "200 · sin match", c.result ? "warn" : "ok");
     }
     p.t0 = t;
   };
@@ -778,7 +783,9 @@ function mountCustomRulesScene(root) {
       S.cur = { p, t0: t, stage: -1, result: null, shown: false };
       condEls.forEach((g, i) => { setBadge(i, null); g.classList.remove("cur"); });
       insp.textContent = `${tag(p.r)} ${LANES[p.r.lane].who} · ${p.r.path} · ${p.r.cc} · score ${p.r.score}`;
-      setVerdict("near", "EVALUANDO…");
+      // Sin condiciones activas la regla no existe: no se evalúa y la petición pasa
+      if (!ruleActive()) Object.assign(S.cur, { result: false, inactive: true, tDone: t });
+      else setVerdict("near", "EVALUANDO…");
       S.eval++;
       kit.out("eval", S.eval);
     }
@@ -803,7 +810,11 @@ function mountCustomRulesScene(root) {
     }
     if (c.result !== null && !c.shown) {
       c.shown = true;
-      if (c.result) {
+      if (c.inactive) {
+        setVerdict("ok", "REGLA INACTIVA → PASA AL ORIGEN");
+        kit.caption(`i${r.n}`, "⚪ Regla inactiva: es como si no existiera",
+          `Todas las condiciones están apagadas, así que la regla no se evalúa y no aplica ninguna acción. <b>${esc(r.path)}</b> de ${LANES[r.lane].who.toLowerCase()} pasa directo al origen, igual que cualquier bot. Enciende una condición para volver a proteger /admin.`);
+      } else if (c.result) {
         const a = ACTIONS[cfg.action];
         S.match++;
         kit.out("match", S.match);
