@@ -707,15 +707,21 @@ function spawnPackets(svg) {
   svg.querySelectorAll(".d-edge.on").forEach(edge => {
     const d = edge.getAttribute("d");
     const bad = edge.classList.contains("bad");
-    const pkt = document.createElementNS(SVGNS, "circle");
-    pkt.setAttribute("r", "5");
-    pkt.setAttribute("class", `d-packet ${bad ? "bad" : "good"}`);
-    const am = document.createElementNS(SVGNS, "animateMotion");
-    am.setAttribute("dur", "1.4s");
-    am.setAttribute("repeatCount", "indefinite");
-    am.setAttribute("path", d);
-    pkt.appendChild(am);
-    svg.appendChild(pkt);
+    // Ráfaga: 3 paquetes por ruta, velocidad distinta según tipo
+    const count = bad ? 4 : 2;
+    const dur = bad ? "1.1s" : "1.6s";
+    for (let k = 0; k < count; k++) {
+      const pkt = document.createElementNS(SVGNS, "circle");
+      pkt.setAttribute("r", k === 0 ? "5.5" : "4");
+      pkt.setAttribute("class", `d-packet ${bad ? "bad" : "good"}`);
+      const am = document.createElementNS(SVGNS, "animateMotion");
+      am.setAttribute("dur", dur);
+      am.setAttribute("begin", `${-k * (bad ? 0.35 : 0.7)}s`);
+      am.setAttribute("repeatCount", "indefinite");
+      am.setAttribute("path", d);
+      pkt.appendChild(am);
+      svg.appendChild(pkt);
+    }
     if (bad) {
       const m = d.match(/M ([\d.]+) ([\d.]+) L ([\d.]+) ([\d.]+)/);
       if (m) {
@@ -741,6 +747,7 @@ function diagramSlotHTML(id) {
   const d = activeDiagram(id);
   if (!d) return "";
   return `${buildDiagram(d)}
+    <div class="rate-meter"><div class="rm-top"><span class="rm-label"></span><span class="rm-num"></span></div><div class="rm-track"><div class="rm-fill"></div></div></div>
     <div class="step-caption"></div>
     ${diagramControlsHTML(d.steps.length)}
     <div class="diagram-legend">
@@ -766,6 +773,25 @@ function setDiagramStep(i) {
   $$(".step-dot").forEach((d, j) => d.classList.toggle("on", j === state.diagram.step));
   $$(".step-caption").forEach(c => c.innerHTML = `<strong>${state.diagram.step + 1}. ${s.t}</strong><p>${s.d}</p>`);
   $$(".diagram").forEach(spawnPackets);
+  // HUD de umbral (ej. rate limiting): el medidor se llena en tiempo real
+  $$(".rate-meter").forEach(m => {
+    if (!s.m) { m.classList.remove("show"); return; }
+    m.classList.add("show");
+    const fill = m.querySelector(".rm-fill"), num = m.querySelector(".rm-num"), lbl = m.querySelector(".rm-label");
+    const target = s.m.value, max = s.m.max;
+    lbl.textContent = s.m.label;
+    m.classList.toggle("hit", target >= max);
+    const t0 = performance.now(), dur = 1400;
+    const tick = now => {
+      const p = Math.min(1, (now - t0) / dur);
+      const v = Math.round((state._ratePrev || 0) + (target - (state._ratePrev || 0)) * p);
+      num.textContent = `${v}/${max}`;
+      fill.style.width = `${Math.min(100, (v / max) * 100)}%`;
+      if (p < 1 && state.diagram?.step === (i % n + n) % n) requestAnimationFrame(tick);
+      else if (p >= 1) state._ratePrev = target;
+    };
+    requestAnimationFrame(tick);
+  });
 }
 
 function syncPlayBtns() {
