@@ -680,9 +680,7 @@ function viewProducto(id) {
       <div class="product-diagram">
         <div class="card" style="--accent:${p.accent}">
           <div class="card-kicker">Diagrama interactivo</div>
-          ${buildDiagram(L.diagram)}
-          <div class="step-caption"></div>
-          ${diagramControlsHTML(L.diagram.steps.length)}
+          <div id="diagram-slot">${diagramSlotHTML(id)}</div>
           <div class="diagram-legend">
             <span><i class="lg good"></i> Tráfico legítimo</span>
             <span><i class="lg bad"></i> Ataque / bloqueado</span>
@@ -733,13 +731,37 @@ function spawnPackets(svg) {
   });
 }
 
+function activeDiagram(id) {
+  const f = state.diagram?.feat;
+  const L = LEARN[id];
+  return (f != null && L?.features?.[f]?.d) ? L.features[f].d : L?.diagram;
+}
+
+function diagramSlotHTML(id) {
+  const d = activeDiagram(id);
+  if (!d) return "";
+  return `${buildDiagram(d)}
+    <div class="step-caption"></div>
+    ${diagramControlsHTML(d.steps.length)}
+    <div class="diagram-legend">
+      <span><i class="lg good"></i> Tráfico legítimo</span>
+      <span><i class="lg bad"></i> Ataque / bloqueado</span>
+    </div>`;
+}
+
+function renderDiagramSlot(id) {
+  const el = $("#diagram-slot");
+  if (el) el.innerHTML = diagramSlotHTML(id);
+}
+
 function setDiagramStep(i) {
   const [r, id] = route();
   const L = LEARN[id];
-  if (!L) return;
-  const n = L.diagram.steps.length;
-  state.diagram = { product: id, step: (i + n) % n };
-  const s = L.diagram.steps[state.diagram.step];
+  const d = activeDiagram(id);
+  if (!d) return;
+  const n = d.steps.length;
+  state.diagram = { product: id, feat: state.diagram?.feat ?? null, step: (i + n) % n };
+  const s = d.steps[state.diagram.step];
   $$("[data-did]").forEach(el => el.classList.toggle("on", s.on.includes(el.dataset.did)));
   $$(".step-dot").forEach((d, j) => d.classList.toggle("on", j === state.diagram.step));
   $$(".step-caption").forEach(c => c.innerHTML = `<strong>${state.diagram.step + 1}. ${s.t}</strong><p>${s.d}</p>`);
@@ -759,7 +781,7 @@ function togglePlay() {
       const [, id] = route();
       const L = LEARN[id];
       if (!L) { clearInterval(state.diagramTimer); state.diagramTimer = null; }
-      else if (state.diagram.step >= L.diagram.steps.length - 1) {
+      else if (state.diagram.step >= activeDiagram(id).steps.length - 1) {
         clearInterval(state.diagramTimer); state.diagramTimer = null; syncPlayBtns();
       } else setDiagramStep(state.diagram.step + 1);
     }, 2800);
@@ -770,8 +792,8 @@ function togglePlay() {
 function openDiagramModal() {
   const [, id] = route();
   const p = PRODUCTS.find(x => x.id === id);
-  const L = LEARN[id];
-  if (!p || !L || $("#diagram-modal")) return;
+  const d = activeDiagram(id);
+  if (!p || !d || $("#diagram-modal")) return;
   const m = document.createElement("div");
   m.className = "diagram-modal";
   m.id = "diagram-modal";
@@ -781,9 +803,9 @@ function openDiagramModal() {
         <span class="card-kicker">${p.num} ${p.name} · Diagrama interactivo</span>
         <button class="btn btn-sm" data-step-act="close-diagram">✕ Cerrar</button>
       </div>
-      ${buildDiagram(L.diagram)}
+      ${buildDiagram(d)}
       <div class="step-caption"></div>
-      ${diagramControlsHTML(L.diagram.steps.length, false)}
+      ${diagramControlsHTML(d.steps.length, false)}
       <div class="diagram-legend">
         <span><i class="lg good"></i> Tráfico legítimo</span>
         <span><i class="lg bad"></i> Ataque / bloqueado</span>
@@ -851,7 +873,20 @@ function wire(r, arg) {
   if (PORTFOLIOS[r] && PRODUCTS.find(p => p.id === arg)) {
     const step = state.diagram?.product === arg ? state.diagram.step : 0;
     setDiagramStep(step);
-    $$(".feature-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
+    $$(".feature-head").forEach(h => h.addEventListener("click", () => {
+      const item = h.parentElement;
+      const i = +item.dataset.f;
+      const wasOpen = item.classList.contains("open");
+      $$(".feature-item").forEach(x => x.classList.remove("open"));
+      if (wasOpen) {
+        state.diagram = { product: arg, feat: null, step: 0 };
+      } else {
+        item.classList.add("open");
+        state.diagram = { product: arg, feat: i, step: 0 };
+      }
+      renderDiagramSlot(arg);
+      setDiagramStep(0);
+    }));
   }
   if (r === "flashcards") {
     const flip = () => { state.flash.flipped = !state.flash.flipped; $("#flashcard").classList.toggle("flipped", state.flash.flipped); };
