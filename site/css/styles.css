@@ -1083,3 +1083,34 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-op { fill: #374151; }
 .sc-op.tog { fill: #EA580C; font-weight: 700; text-decoration: underline; cursor: pointer; }
 .sc-cond.off .sc-op.tog { fill: #EA580C; }
+
+/* ---------- Vista ampliada: diagrama a la izquierda, Security Events a la derecha (sin scroll) ---------- */
+.rl-log { max-height: 190px; overflow: hidden; }
+.scene-wrap.scene-full {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(320px, 30vw, 440px);
+  grid-auto-rows: min-content;
+  column-gap: 20px;
+  align-content: start;
+  inset: 3vh 2.5vw;
+}
+.scene-full > * { grid-column: 1; }
+.scene-full > .scene-titlebar { grid-column: 1 / -1; grid-row: 1; margin: 0 -24px 14px; }
+.scene-full > .scene-side {
+  grid-column: 2; grid-row: 2 / span 12;
+  display: flex; flex-direction: column; gap: 10px;
+  height: calc(94vh - 110px); min-height: 0;
+}
+.scene-full .scene-side .rl-stats { margin-top: 0; gap: 8px; }
+.scene-full .rl-stat { min-width: 90px; padding: 6px 10px; }
+.scene-full .rl-stat b { font-size: 16px; }
+.scene-full .scene-side .rl-console { margin-top: 0; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.scene-full .rl-log { flex: 1; max-height: none; overflow-y: auto; }
+.scene-full .rl-log-line { grid-template-columns: 74px 86px minmax(0, 1fr) auto; gap: 6px; font-size: 10px; }
+.scene-wrap.scene-full .scene-svg { width: min(100%, calc((94vh - 260px) * 2.05)); margin: 0 auto; }
+.scene-full .rl-caption { margin-top: 10px; }
+
+@media (max-width: 1100px) {
+  .scene-wrap.scene-full { display: block; }
+  .scene-full > .scene-side { height: auto; }
+}

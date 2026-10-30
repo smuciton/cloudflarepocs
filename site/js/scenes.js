@@ -61,6 +61,14 @@ function addSceneChrome(root, scene, title) {
     <button class="btn" data-chrome="startfull">⛶ Iniciar en pantalla completa</button>`;
   stage.appendChild(overlay);
 
+  // Contadores + Security Events en un panel lateral (columna derecha en la vista ampliada)
+  const side = document.createElement("div");
+  side.className = "scene-side";
+  const stats = root.querySelector(".rl-stats"), con = root.querySelector(".rl-console");
+  (stats || con).before(side);
+  if (stats) side.appendChild(stats);
+  if (con) side.appendChild(con);
+
   const cap = root.querySelector(".rl-caption");
   if (cap && !cap.textContent.trim()) {
     cap.innerHTML = "<strong>▶ Lista para iniciar</strong><p>Presiona <b>Iniciar animación</b> para ver la simulación, o iníciala en pantalla completa para presentarla.</p>";
@@ -215,7 +223,7 @@ function mountRateLimitScene(root) {
     d.className = `rl-log-line ${cls}`;
     d.innerHTML = html;
     logEl.prepend(d);
-    while (logEl.children.length > 8) logEl.lastElementChild.remove();
+    while (logEl.children.length > 18) logEl.lastElementChild.remove();
   }
 
   const logReq = (p, ok) => pushLog(
@@ -544,7 +552,7 @@ function sceneKit(root, { svg, controls = "", stats = "", consoleTitle = "Securi
       d.className = `rl-log-line ${cls}`;
       d.innerHTML = html;
       logEl.prepend(d);
-      while (logEl.children.length > 8) logEl.lastElementChild.remove();
+      while (logEl.children.length > 18) logEl.lastElementChild.remove();
     },
     // Línea de log con columnas: hora · a · b · resultado
     logReq(a, b, res, cls) {
