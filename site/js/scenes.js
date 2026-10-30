@@ -461,6 +461,12 @@ const shuffle = a => {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
   return a;
 };
+const logClass = (res, fallback) => {
+  if (/^(403|429)|block|bloquead|challenge|rate_limit/i.test(res)) return "bad";
+  if (/⚠|filtrad|evadi|llegó|expuesto/i.test(res)) return "warn";
+  if (/^(200|500)/.test(res)) return "ok";
+  return fallback;
+};
 const sceneClock = () => {
   const d = new Date();
   return `${d.toTimeString().slice(0, 8)}.${String(d.getMilliseconds()).padStart(3, "0")}`;
@@ -554,9 +560,10 @@ function sceneKit(root, { svg, controls = "", stats = "", consoleTitle = "Securi
       logEl.prepend(d);
       while (logEl.children.length > 18) logEl.lastElementChild.remove();
     },
-    // Línea de log con columnas: hora · a · b · resultado
+    // Línea de log con columnas: hora · a · b · resultado. El color sale del resultado:
+    // rojo = bloqueado por Cloudflare, ámbar = ataque que pasó o riesgo, verde = permitido
     logReq(a, b, res, cls) {
-      kit.log(`<span>${sceneClock()}</span><span>${esc(a)}</span><span>${esc(b)}</span><span class="res">${esc(res)}</span>`, cls);
+      kit.log(`<span>${sceneClock()}</span><span>${esc(a)}</span><span>${esc(b)}</span><span class="res">${esc(res)}</span>`, logClass(res, cls));
     },
     clear() { logEl.innerHTML = ""; layer.innerHTML = ""; capKey = ""; },
     caption(key, title, text) {
