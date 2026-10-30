@@ -208,12 +208,58 @@ function viewInicio() {
     </div>`;
 }
 
+// Mapa del connectivity cloud: áreas del portafolio completo, con lo disponible resaltado y lo demás en construcción
+function buildCloudMap() {
+  const cols = [36, 284, 532], CW = 212;
+  const statusTag = st => st === "live" ? "✓ DISPONIBLE" : "🚧 EN CONSTRUCCIÓN";
+  const item = ([label, route, st], area, x, y, w) => {
+    const status = st || area.status;
+    return `<g class="cm-item ${status}" ${route ? `data-cm="${route}"` : ""} data-label="${label}" data-st="${status}">
+      <rect x="${x}" y="${y - 12}" width="${w}" height="16" rx="4"/>
+      <text x="${x + w / 2}" y="${y}" text-anchor="middle">${status === "live" ? "▸ " : ""}${label}</text></g>`;
+  };
+  const s = [`<svg class="diagram cm-map" viewBox="0 0 780 470" xmlns="http://www.w3.org/2000/svg">`];
+  s.push(`<rect class="d-bg" x="0" y="0" width="780" height="470" rx="14"/>`);
+  s.push(cfCloud(368, 12, 1.0));
+  s.push(`<text class="cm-title" x="390" y="66" text-anchor="middle">Cloudflare connectivity cloud</text>`);
+  s.push(`<text class="cm-sub" x="390" y="86" text-anchor="middle">Connect · Protect · Build</text>`);
+  s.push(`<rect class="cm-frame" x="20" y="98" width="740" height="360" rx="14"/>`);
+  CLOUD_MAP.areas.forEach((a, i) => {
+    const x = cols[i];
+    s.push(`<g class="cm-area ${a.status}" style="--cm:${a.accent}">
+      <rect class="cm-card" x="${x}" y="112" width="${CW}" height="186" rx="10"/>
+      <rect class="cm-head" x="${x}" y="112" width="${CW}" height="28" rx="10"/>
+      <rect class="cm-head" x="${x}" y="126" width="${CW}" height="14"/>
+      <text class="cm-area-t" x="${x + CW / 2}" y="131" text-anchor="middle">${a.title}</text>
+      <text class="cm-status" x="${x + CW / 2}" y="154" text-anchor="middle">${statusTag(a.status)}</text></g>`);
+    a.items.forEach((it, j) => s.push(item(it, a, x + 8, 174 + j * 16.5, CW - 16)));
+  });
+  const n = CLOUD_MAP.network;
+  s.push(`<g class="cm-area ${n.status}" style="--cm:${n.accent}">
+    <rect class="cm-card" x="36" y="310" width="708" height="64" rx="10"/>
+    <rect class="cm-head" x="36" y="310" width="708" height="24" rx="10"/>
+    <rect class="cm-head" x="36" y="322" width="708" height="12"/>
+    <text class="cm-area-t" x="390" y="327" text-anchor="middle">🌐 ${n.title} · ${statusTag(n.status)}</text></g>`);
+  n.items.forEach((it, j) => s.push(item(it, n, 44 + j * 116.5, 358, 110)));
+  s.push(`<rect class="cm-base" x="36" y="384" width="708" height="62" rx="10"/>
+    <text class="cm-base-t" x="390" y="410" text-anchor="middle">Cloudflare Programmable Global Network</text>
+    <text class="cm-base-s" x="390" y="432" text-anchor="middle">🧠 Inteligencia artificial / Machine Learning · 🛡 Threat &amp; Network Intelligence · 330+ ciudades</text>`);
+  s.push(`</svg>`);
+  return s.join("");
+}
+
 function viewPortafolio(focusId) {
   return `
-    <h2 class="page-title">Portafolio · Application Security</h2>
-    <p class="page-sub">Los siete dominios del portafolio, con objetivos, problemas que resuelven y pitch para cliente.</p>
+    <h2 class="page-title">Portafolio · Cloudflare</h2>
+    <p class="page-sub">El connectivity cloud completo. Application Security ya está disponible con demos interactivas; los demás portafolios se están construyendo.</p>
     <div class="card" style="--accent:var(--orange);margin-bottom:26px">
-      <div class="card-kicker">Mapa del portafolio</div>
+      <div class="card-kicker">Mapa del portafolio · connectivity cloud</div>
+      ${buildCloudMap()}
+      <div class="step-caption" id="cm-caption"><strong>Explora el portafolio</strong><p>Pasa el cursor sobre un producto para ver de qué se trata. Los de <b>App Security</b> abren su demo interactiva; los demás muestran lo que viene.</p></div>
+    </div>
+    <div class="section-title" style="--accent:var(--orange)">Application Security · detalle</div>
+    <div class="card" style="--accent:var(--orange);margin-bottom:26px">
+      <div class="card-kicker">Mapa de Application Security</div>
       ${buildPfDiagram()}
       <div class="step-caption" id="pf-caption"><strong>Explora el mapa</strong><p>Cada capa del edge juega un rol: pasa el cursor sobre un producto para ver su pitch, o haz clic para abrir su página interactiva.</p></div>
     </div>
@@ -890,6 +936,18 @@ function wire(r, arg) {
       });
     });
     $$("#view .diagram").forEach(spawnPackets);
+    $$(".cm-item").forEach(el => {
+      const route = el.dataset.cm;
+      if (route) el.addEventListener("click", () => go(route));
+      el.addEventListener("mouseenter", () => {
+        const cap = $("#cm-caption");
+        if (!cap) return;
+        const p = route?.startsWith(`${APPSEC}/`) && PRODUCTS.find(x => x.id === route.split("/")[1]);
+        cap.innerHTML = el.dataset.st === "live" && p
+          ? `<strong style="color:${p.accent}">▸ ${p.name} · disponible</strong><p>${p.pitch} <b>Haz clic</b> para abrir su demo interactiva.</p>`
+          : `<strong>🚧 ${el.dataset.label} · en construcción</strong><p>${route ? "Ya tiene su página en el portafolio; pronto con diagrama interactivo y labs hands-on." : "Próximamente en el portafolio."}</p>`;
+      });
+    });
   }
 
   if (PORTFOLIOS[r] && PRODUCTS.find(p => p.id === arg)) {

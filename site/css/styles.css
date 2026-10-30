@@ -1162,3 +1162,27 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-pgate.hit rect { fill: #FEF2F2; stroke: #DC2626; stroke-width: 2.6; filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.6)); }
 .sc-pgate.off { opacity: 0.3; }
 .sc-pgate.off rect { stroke-dasharray: 4 3; }
+
+/* ---------- Mapa del connectivity cloud ---------- */
+.cm-title { fill: #111827; font: 700 17px var(--font-display); }
+.cm-sub { fill: #F6821F; font: 700 13px var(--font-display); letter-spacing: 1px; }
+.cm-frame { fill: #FFF7ED; stroke: #F6821F; stroke-width: 1.6; }
+.cm-card { fill: #FFFFFF; stroke: var(--cm); stroke-width: 1.4; }
+.cm-head { fill: var(--cm); }
+.cm-area-t { fill: #FFFFFF; font: 700 11.5px var(--font-display); }
+.cm-status { font: 700 8px var(--font-display); letter-spacing: 1.2px; }
+.cm-area.live .cm-status { fill: #16A34A; }
+.cm-area.soon .cm-status { fill: #B45309; }
+.cm-area.live .cm-card { stroke-width: 2.2; animation: cmglow 2.4s ease-in-out infinite; }
+@keyframes cmglow { 50% { filter: drop-shadow(0 0 8px rgba(246, 130, 31, 0.55)); } }
+.cm-area.soon .cm-card { stroke-dasharray: 5 4; }
+.cm-item rect { fill: transparent; transition: fill 0.15s; }
+.cm-item text { font: 9.5px var(--font-body); }
+.cm-item.live text { fill: #1F2937; font-weight: 700; }
+.cm-item.soon text { fill: #9CA3AF; }
+.cm-item[data-cm] { cursor: pointer; }
+.cm-item.live:hover rect { fill: #FFEDD5; }
+.cm-item.soon:hover rect { fill: #F1F5F9; }
+.cm-base { fill: #F6821F; }
+.cm-base-t { fill: #FFFFFF; font: 700 15px var(--font-display); }
+.cm-base-s { fill: #FFF7ED; font: 600 10px var(--font-body); }

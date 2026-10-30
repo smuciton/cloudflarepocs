@@ -140,7 +140,8 @@ const QUICK_LINKS = [
 const PORTFOLIOS = {
   "application-security": { title: "Application Security", accent: "#F6821F" },
   "cloudflare-one": { title: "Cloudflare One · Zero Trust · SASE", accent: "#00C2FF" },
-  "network-services": { title: "Network Services", accent: "#FBAD41" }
+  "network-services": { title: "Network Services", accent: "#FBAD41" },
+  "developer-platform": { title: "Developer Platform", accent: "#A78BFA" }
 };
 const APPSEC = "application-security";
 
@@ -170,6 +171,12 @@ const SOON_PORTFOLIOS = [
         "Postura de seguridad de aplicaciones SaaS",
         "Detección de permisos excesivos",
         "Alertas por configuraciones riesgosas"
+      ]},
+      { name: "Email Security", slug: "email-security", objectives: [
+        "Protección contra phishing y BEC",
+        "Detección de enlaces y adjuntos maliciosos",
+        "Integración con Microsoft 365 y Google Workspace",
+        "Aislamiento de enlaces con Browser Isolation"
       ]},
       { name: "Data Loss Prevention", slug: "dlp", objectives: [
         "Detección de datos sensibles (PII, tarjetas)",
@@ -235,8 +242,88 @@ const SOON_PORTFOLIOS = [
         "Secondary DNS y transferencias de zona"
       ]}
     ]
+  },
+  {
+    id: "dev",
+    slug: "developer-platform",
+    title: "Developer Platform",
+    short: "Developer Platform",
+    accent: "#A78BFA",
+    items: [
+      { name: "Workers AI", slug: "workers-ai", objectives: [
+        "Inferencia de modelos en la red global",
+        "Modelos open source listos para usar",
+        "Pago por uso, sin GPUs que administrar",
+        "Integración nativa con Workers"
+      ]},
+      { name: "AI Gateway", slug: "ai-gateway", objectives: [
+        "Observabilidad de llamadas a LLMs",
+        "Caché y rate limiting para IA",
+        "Fallback entre proveedores de modelos",
+        "Control de costos y uso"
+      ]},
+      { name: "Workers", slug: "workers", objectives: [
+        "Serverless en más de 330 ciudades",
+        "Arranque en frío casi nulo",
+        "Workflows, Queues y Durable Objects",
+        "Despliegue global en segundos"
+      ]},
+      { name: "Pages", slug: "pages", objectives: [
+        "Sitios full stack con Git",
+        "Previews por cada pull request",
+        "Funciones serverless integradas",
+        "CDN global incluida"
+      ]},
+      { name: "R2 · KV", slug: "r2-kv", objectives: [
+        "Almacenamiento de objetos sin egress fees",
+        "Key-value global de baja latencia",
+        "Compatible con la API de S3",
+        "Datos cerca del usuario"
+      ]},
+      { name: "D1", slug: "d1", objectives: [
+        "Base de datos SQL serverless",
+        "Basada en SQLite",
+        "Réplicas de lectura globales",
+        "Integración directa con Workers"
+      ]},
+      { name: "Images · Stream", slug: "media", objectives: [
+        "Optimización y redimensionado de imágenes",
+        "Video on demand y en vivo",
+        "Entrega global optimizada",
+        "Pago por uso"
+      ]}
+    ]
   }
 ];
+
+// Mapa del portafolio completo (connectivity cloud). Cada producto: [etiqueta, ruta, estado opcional]
+const CLOUD_MAP = {
+  areas: [
+    { id: "sase", title: "SASE & Workspace Security", status: "soon", accent: "#00C2FF", items: [
+      ["ZTNA · Access", "cloudflare-one/access-ztna"], ["SWG · Gateway", "cloudflare-one/secure-web-gateway"],
+      ["CASB", "cloudflare-one/casb"], ["Email Security", "cloudflare-one/email-security"],
+      ["Data Loss Prevention", "cloudflare-one/dlp"], ["Remote Browser Isolation", "cloudflare-one/browser-isolation"],
+      ["Digital Experience Monitoring", "cloudflare-one/dem"]
+    ]},
+    { id: "app", title: "App Security & Performance", status: "live", accent: "#F6821F", items: [
+      ["WAF", "application-security/waf"], ["Bot Management", "application-security/bots"],
+      ["API Shield", "application-security/api"], ["DDoS L7", "application-security/ddos"],
+      ["Rate Limiting", "application-security/ratelimit"], ["Page Shield", "application-security/pageshield"],
+      ["SSL/TLS", "application-security/ssl"], ["Load Balancing · CDN · DNS", "network-services/load-balancing", "soon"]
+    ]},
+    { id: "dev", title: "Developer Services", status: "soon", accent: "#A78BFA", items: [
+      ["Workers AI · inferencia", "developer-platform/workers-ai"], ["AI Gateway", "developer-platform/ai-gateway"],
+      ["Workers · serverless", "developer-platform/workers"], ["Pages · full stack", "developer-platform/pages"],
+      ["R2 · KV · storage", "developer-platform/r2-kv"], ["D1 · SQL", "developer-platform/d1"],
+      ["Images · Stream", "developer-platform/media"]
+    ]}
+  ],
+  network: { title: "Network Services", status: "soon", accent: "#FBAD41", items: [
+    ["NaaS · Magic WAN", "network-services/magic-wan"], ["FWaaS · Magic Firewall", "network-services/magic-firewall"],
+    ["L3/L4 DDoS · Magic Transit", "network-services/magic-transit"], ["Cloudflare Tunnel", "network-services/cloudflare-tunnel"],
+    ["Smart Routing · Argo", null], ["IDS / IPS", null]
+  ]}
+};
 
 const NAV_TOP = [
   { id: "inicio", label: "Inicio", color: "#F6821F" },
