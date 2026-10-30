@@ -1196,7 +1196,7 @@ function mountResponseScene(root) {
 // Basado en https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 function mountManagedScene(root) {
   // RULE_T es solo la posición inicial del marcador: la regla se publica cuando Cloudflare detecta los primeros exploits (ZERO_PASS)
-  const T = 34, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, RULE_T = 8, DEP = 2.5, ZERO_PASS = 2, DISC_T = 15, MUT_T = 17, PATCH_T = 27, ATK_END = 32;
+  const T = 38, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, RULE_T = 8, DEP = 7, ZERO_PASS = 2, DISC_T = 18, MUT_T = 20, PATCH_T = 31, ATK_END = 36;
   const PATH = {
     usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]],
     out: [[560, 200], [646, 200]], oback: [[646, 226], [560, 226]], exfil: [[240, 280], [98, 284]]
@@ -1279,7 +1279,7 @@ function mountManagedScene(root) {
   const cycle = t => {
     S.packets.forEach(p => p.g.remove());
     Object.assign(S, {
-      c0: t, packets: [], zeroPass: 0, ruleAt: null, sqli: false, gap: false, ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
+      c0: t, packets: [], zeroPass: 0, deployPass: 0, ruleAt: null, sqli: false, gap: false, ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
       lastLeak: -9, lit: 0, nextUsr: 0.2, nextBot: SQLI_T + 0.2, order: shuffle([...Array(DOTS).keys()])
     });
     toast.setAttribute("class", "sc-toast");
@@ -1334,7 +1334,8 @@ function mountManagedScene(root) {
     }
     if (p.leg === "in") {
       // La firma de la petición atrapa el payload original; la variante mutada la evade
-      if (p.kind === "x" && S.ruled && Math.random() < frac) {
+      // Durante el despliegue a lo mucho se cuela un exploit más; luego la regla ya cubre su PoP
+      if (p.kind === "x" && S.ruled && (S.deployPass >= 1 || Math.random() < Math.sqrt(frac))) {
         kit.impact(PATH.bot[1]);
         kit.relabel(p.g, "bad", "403", 44);
         Object.assign(p, { leg: "back", path: PATH.bot.slice().reverse(), dur: 0.85, t0: t });
@@ -1346,6 +1347,7 @@ function mountManagedScene(root) {
       if (p.kind === "mut") kit.logReq(p.ip, `POST /index.php #${p.n}`, "⚠ variante evadió la firma", "warn");
       else if (p.kind === "x") {
         if (!S.ruled) S.zeroPass++;
+        else S.deployPass++;
         kit.logReq(p.ip, `POST /index.php #${p.n}`, !cfg.enabled ? "⚠ llegó al origen" : !S.ruled ? "⚠ día cero · aún sin regla" : "⚠ llegó · despliegue en curso", "bad");
       }
       return;
@@ -1472,7 +1474,7 @@ function mountManagedScene(root) {
       S.live = true;
       kit.log("✓ Reglas activas en toda la red, en todos los planes (incluido Free)", "evt");
     }
-    dep.textContent = !cfg.enabled ? "Ruleset desactivado" : !S.ruled ? "sin reglas pendientes" : S.live ? "✓ activa en toda la red" : `desplegando… ${Math.round(frac * 100)}%`;
+    dep.textContent = !cfg.enabled ? "Ruleset desactivado" : !S.ruled ? "sin reglas pendientes" : S.live ? "✓ activa en toda la red" : `desplegando… ${S.lit}/${DOTS} PoPs · ${Math.round(frac * 100)}%`;
     if (!S.patched && ct >= PATCH_T) {
       S.patched = true;
       markEls.patch.classList.add("on");

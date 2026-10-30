@@ -1130,3 +1130,10 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-toast.info .t2 { fill: #1E3A8A; }
 .sc-card.sc-rf.hl > rect { fill: #EFF6FF; stroke: #3B82F6; }
 .sc-row.hit rect { fill: #ECFDF5; stroke: #16A34A; stroke-width: 1.8; }
+.sc-pop { transform-box: fill-box; transform-origin: center; }
+.sc-pop.on { animation: scpop 0.6s ease-out; }
+@keyframes scpop {
+  0% { transform: scale(0.4); fill: #FFFFFF; filter: drop-shadow(0 0 0 rgba(246, 130, 31, 0)); }
+  45% { transform: scale(2.1); fill: #FBAD41; filter: drop-shadow(0 0 7px rgba(246, 130, 31, 0.95)); }
+  100% { transform: scale(1); }
+}
