@@ -503,7 +503,7 @@ const LEARN = {
         d: { type: "flow",
           sources: [
             { icon: "🧑", label: "Usuario normal", cls: "good", packet: "2 req/s" },
-            { icon: "🔁", label: "Script abusivo", cls: "bad", packet: "500 req/s" }
+            { icon: "🔁", label: "Script abusivo", cls: "bad", packet: "500 req/s", flood: true }
           ],
           module: "Rate Limit", moduleSub: "umbral: 100 req/min",
           targets: [
@@ -511,10 +511,10 @@ const LEARN = {
             { icon: "⏱️", label: "429 · Límite alcanzado", cls: "bad" }
           ],
           steps: [
-            { t: "Peticiones a distinto ritmo", d: "Un usuario normal hace 2 req/s; un script abusivo dispara 500 req/s contra el login.", on: ["s0", "s1", "e-in0", "e-in1"], m: { label: "Requests contados", value: 25, max: 100 } },
-            { t: "El edge cuenta por característica", d: "Contadores por IP, sesión, ASN, header o fingerprint — no solo IP.", on: ["edge", "dc", "e-dc"], m: { label: "Requests contados", value: 65, max: 100 } },
-            { t: "Umbral excedido → acción", d: "Al pasar el límite en el periodo, se aplica la acción: block, challenge o log.", on: ["e-dc", "mod"], m: { label: "¡Umbral alcanzado!", value: 100, max: 100 } },
-            { t: "El servicio se protege", d: "El usuario normal sigue igual; el abusivo recibe 429 hasta que baja el ritmo.", on: ["e-out0", "chk", "t0", "e-out1", "t1"], m: { label: "Bloqueado · 429", value: 100, max: 100 } }
+            { t: "El script no para de intentar", d: "El usuario normal hace 2 req/s; el script abusivo dispara peticiones una tras otra contra el login — fíjate en el flujo rojo.", on: ["s0", "s1", "e-in0", "e-in1"], m: { label: "Requests contados", value: 15, max: 100 } },
+            { t: "El edge cuenta cada intento", d: "El contador por IP/sesión/fingerprint sube con cada petición que llega — el flood sigue entrando.", on: ["edge", "dc", "e-dc", "e-in1"], m: { label: "Requests contados", value: 65, max: 100 } },
+            { t: "¡Umbral alcanzado!", d: "El contador toca 100/minuto → la regla se dispara y se aplica la acción: block, challenge o log.", on: ["e-dc", "mod", "e-in1"], m: { label: "¡Umbral alcanzado!", value: 100, max: 100 } },
+            { t: "El flood se estrella", d: "Cada intento del script se estampa contra el edge y recibe 429 — el origen solo ve el ritmo del usuario normal.", on: ["e-out0", "chk", "t0", "e-out1", "t1", "e-in1"], m: { label: "Bloqueado · 429", value: 100, max: 100 } }
           ] } },
       { icon: "📤", name: "Response Rules", blurb: "Personaliza la respuesta de bloqueo que ve el usuario.",
         detail: "Define código de estado, content-type y cuerpo de la respuesta de bloqueo — HTML con tu marca o JSON consistente para clientes de API, en vez de la página genérica. Útil para que el bloqueo 'hable el idioma' de tu app.",

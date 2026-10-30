@@ -472,7 +472,7 @@ function flowSpec(d) {
   const edges = d.sources.map((s, i) => ({
     id: `e-in${i}`, x1: 103, y1: sy[i], x2: 268,
     y2: d.sources.length === 1 ? 180 : (i === 0 ? 175 : 205),
-    cls: s.cls, label: s.packet
+    cls: s.cls, label: s.packet, flood: s.flood
   }));
   edges.push({ id: "e-dc", x1: 332, y1: 180, x2: mods[0].x - 3, y2: 180, cls: "good" });
   if (n === 2) edges.push({ id: "e-mm", x1: mods[0].x + bw + 3, y1: 180, x2: mods[1].x - 3, y2: 180, cls: "good" });
@@ -505,7 +505,7 @@ function buildDiagram(spec) {
   svg.push(`<text class="d-nettitle" x="432" y="90" text-anchor="middle">Cloudflare Global Network</text>`);
   for (const e of edges) {
     const mx = (e.x1 + e.x2) / 2, my = (e.y1 + e.y2) / 2;
-    svg.push(`<path data-did="${e.id}" class="d-edge ${e.cls}" d="M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}"/>`);
+    svg.push(`<path data-did="${e.id}" ${e.flood ? 'data-flood="1"' : ""} class="d-edge ${e.cls}" d="M ${e.x1} ${e.y1} L ${e.x2} ${e.y2}"/>`);
     if (e.label) svg.push(`<text data-did="${e.id}" class="d-elabel ${e.cls}" x="${mx}" y="${my - 8}" text-anchor="middle">${e.label}</text>`);
   }
   svg.push(`<g data-did="dc" class="d-dc">
@@ -707,16 +707,17 @@ function spawnPackets(svg) {
   svg.querySelectorAll(".d-edge.on").forEach(edge => {
     const d = edge.getAttribute("d");
     const bad = edge.classList.contains("bad");
-    // Ráfaga: 3 paquetes por ruta, velocidad distinta según tipo
-    const count = bad ? 4 : 2;
-    const dur = bad ? "1.1s" : "1.6s";
+    // Ráfaga densa si es flood (abuso continuo); si no, pocos paquetes
+    const flood = edge.dataset.flood === "1";
+    const count = flood ? 12 : bad ? 4 : 2;
+    const dur = flood ? "0.85s" : bad ? "1.1s" : "1.6s";
     for (let k = 0; k < count; k++) {
       const pkt = document.createElementNS(SVGNS, "circle");
-      pkt.setAttribute("r", k === 0 ? "5.5" : "4");
+      pkt.setAttribute("r", flood ? "3.2" : k === 0 ? "5.5" : "4");
       pkt.setAttribute("class", `d-packet ${bad ? "bad" : "good"}`);
       const am = document.createElementNS(SVGNS, "animateMotion");
       am.setAttribute("dur", dur);
-      am.setAttribute("begin", `${-k * (bad ? 0.35 : 0.7)}s`);
+      am.setAttribute("begin", `${-k * (flood ? 0.07 : bad ? 0.35 : 0.7)}s`);
       am.setAttribute("repeatCount", "indefinite");
       am.setAttribute("path", d);
       pkt.appendChild(am);
