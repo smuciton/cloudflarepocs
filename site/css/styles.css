@@ -1129,3 +1129,4 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-toast.info .t1 { fill: #1E40AF; }
 .sc-toast.info .t2 { fill: #1E3A8A; }
 .sc-card.sc-rf.hl > rect { fill: #EFF6FF; stroke: #3B82F6; }
+.sc-row.hit rect { fill: #ECFDF5; stroke: #16A34A; stroke-width: 1.8; }

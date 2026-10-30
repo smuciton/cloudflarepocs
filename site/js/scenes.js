@@ -1195,7 +1195,7 @@ function mountResponseScene(root) {
 // ── Escena: WAF Managed Ruleset · caso real php2shell (CVE-2026-109618 / 109619) ──
 // Basado en https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 function mountManagedScene(root) {
-  const T = 30, RULE_T = 2, DEP = 2.5, LEAK_T = 5, DISC_T = 11, MUT_T = 13, PATCH_T = 24, ATK_END = 28;
+  const T = 34, SQLI_T = 1, SQLI_END = 5, RULE_T = 6, DEP = 2.5, LEAK_T = 9, DISC_T = 15, MUT_T = 17, PATCH_T = 27, ATK_END = 32;
   const PATH = {
     usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]],
     out: [[560, 200], [646, 200]], oback: [[646, 226], [560, 226]], exfil: [[240, 280], [98, 284]]
@@ -1215,7 +1215,7 @@ function mountManagedScene(root) {
       ${isNew ? `<text class="sc-newtag" x="528" y="${119.5 + i * 23}" text-anchor="end">NUEVA</text>` : `<text class="ok" x="528" y="${120 + i * 23}" text-anchor="end">✓</text>`}</g>`).join("");
   const dots = Array.from({ length: DOTS }, (_, i) =>
     `<circle class="sc-pop" cx="${272 + (i % 14) * 19.5}" cy="${262 + Math.floor(i / 14) * 15}" r="4"/>`).join("");
-  const marks = [[RULE_T, "Reglas CF", "good", "rule"], [LEAK_T, "Filtración", "bad", "leak"], [DISC_T, "Divulgación", "bad", "disc"], [PATCH_T, "Tu parche", "", "patch"]];
+  const marks = [[SQLI_T, "SQLi", "good", "sqli"], [RULE_T, "Reglas CF", "good", "rule"], [LEAK_T, "Filtración", "bad", "leak"], [DISC_T, "Divulgación", "bad", "disc"], [PATCH_T, "Tu parche", "", "patch"]];
 
   const svg = sceneFrame({
     edge: [240, 44, 320, 282],
@@ -1264,6 +1264,7 @@ function mountManagedScene(root) {
   const dotEls = kit.qa(".sc-pop"), dep = kit.q(".sc-dep"), hint = kit.q(".sc-mr-hint"), head = kit.q(".sc-tl-head"), done = kit.q(".sc-tl-done");
   const markEls = Object.fromEntries(kit.qa(".sc-tl-mark").map(m => [m.dataset.m, m]));
   const originS = kit.q('[data-o="s"]'), originN = kit.q('[data-o="n"]'), originG = kit.q(".sc-origin"), originSub = kit.q(".sc-origin .d-cust-s");
+  const botSub = kit.q(".sc-bot .d-nlabel.sm"), sqliRow = kit.q(".sc-mr .sc-row:not(.new)");
   let S;
   const randIp = () => `${[45, 89, 103, 185, 193][Math.floor(Math.random() * 5)]}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
   const setToast = (cls, a, b) => {
@@ -1276,8 +1277,8 @@ function mountManagedScene(root) {
   const cycle = t => {
     S.packets.forEach(p => p.g.remove());
     Object.assign(S, {
-      c0: t, packets: [], ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
-      lastLeak: -9, lit: 0, nextUsr: 0.2, nextBot: LEAK_T + 0.3, order: shuffle([...Array(DOTS).keys()])
+      c0: t, packets: [], sqli: false, gap: false, ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
+      lastLeak: -9, lit: 0, nextUsr: 0.2, nextBot: SQLI_T + 0.2, order: shuffle([...Array(DOTS).keys()])
     });
     toast.setAttribute("class", "sc-toast");
     bot.classList.add("sc-dim");
@@ -1291,6 +1292,7 @@ function mountManagedScene(root) {
     mrPill.setAttribute("class", `sc-pill-t sc-mr-pill ${cfg.enabled ? "on" : "off"}`);
     markEls.rule.style.opacity = cfg.enabled ? "" : "0.3";
     originSub.textContent = "PHP 8.x · WordPress";
+    botSub.textContent = "inyección SQL";
     hint.textContent = "PHP corre en ~70% de los sitios web (WordPress, Magento…)";
     kit.segment("data-mr", cfg.enabled ? "on" : "off");
   };
@@ -1306,13 +1308,27 @@ function mountManagedScene(root) {
   const spawn = (kind, t) => {
     const n = ++S.n;
     const p = { kind, n, ip: kind === "usr" ? "" : randIp(), leg: "in", path: PATH[kind === "usr" ? "usr" : "bot"], t0: t, dur: kind === "usr" ? 1.2 : 0.95 };
-    p.g = kind === "usr" ? kit.pill("good", "GET", 40) : kind === "mut" ? kit.pill("exploit", `🧬 #${n}`, 52) : kit.pill("exploit", `php2shell #${n}`, 84);
+    p.g = kind === "usr" ? kit.pill("good", "GET", 40) : kind === "sqli" ? kit.pill("exploit", `SQLi #${n}`, 62) : kind === "mut" ? kit.pill("exploit", `🧬 #${n}`, 52) : kit.pill("exploit", `php2shell #${n}`, 84);
     S.packets.push(p);
     if (kind !== "usr") count("sent");
   };
 
   const arrive = (p, t, frac) => {
     const ct = t - S.c0;
+    if (p.leg === "in" && p.kind === "sqli") {
+      if (cfg.enabled) {
+        kit.impact(PATH.bot[1]);
+        kit.flash(sqliRow, "hit", 600);
+        kit.relabel(p.g, "bad", "403", 44);
+        Object.assign(p, { leg: "back", path: PATH.bot.slice().reverse(), dur: 0.85, t0: t });
+        count("req");
+        kit.logReq(p.ip, `GET /item?id=1' OR 1=1-- #${p.n}`, `403 · regla ${RULES[0][0]}`, "ok");
+      } else {
+        Object.assign(p, { leg: "out", path: PATH.out, dur: 0.7, t0: t });
+        kit.logReq(p.ip, `GET /item?id=1' OR 1=1-- #${p.n}`, "⚠ SQLi llegó al origen", "bad");
+      }
+      return;
+    }
     if (p.leg === "in") {
       // La firma de la petición atrapa el payload original; la variante mutada la evade
       if (p.kind === "x" && S.ruled && Math.random() < frac) {
@@ -1331,6 +1347,12 @@ function mountManagedScene(root) {
     if (p.leg === "out") {
       S.origin++;
       originN.textContent = S.origin;
+      if (p.kind === "sqli") {
+        S.lastLeak = ct;
+        kit.flash(originG, "alarm", 500);
+        kit.drop(p);
+        return;
+      }
       if (p.kind !== "usr" && !S.patched) {
         // El origen vulnerable responde filtrando memoria
         S.lastLeak = ct;
@@ -1365,8 +1387,15 @@ function mountManagedScene(root) {
   };
 
   const phase = ct => {
-    if (ct < RULE_T) return ["calm", "🌐 Un día normal",
-      "El tráfico legítimo llega a tu sitio PHP. El Managed Ruleset ya protege contra ataques conocidos como SQLi."];
+    if (ct < SQLI_T) return ["calm", "🌐 Un día normal",
+      "El tráfico legítimo llega a tu sitio PHP. El Managed Ruleset ya trae reglas para ataques conocidos."];
+    if (ct < SQLI_END) return cfg.enabled
+      ? ["sqli", "💉 Primero, un ataque conocido: SQL injection",
+        "La botnet prueba <code>' OR 1=1--</code>. La regla <b>100015</b> ya existe en el Managed Ruleset desde hace años: cada intento rebota con <b>403</b>. Este es el día a día del WAF."]
+      : ["sqlioff", "⚠ Sin Managed Ruleset: el SQLi llega al origen",
+        "Sin la regla 100015, cada <code>' OR 1=1--</code> llega a tu base de datos a través de tu aplicación."];
+    if (ct < RULE_T) return ["gap", "⏭ Ahora, un ataque que nadie conocía",
+      "¿Qué pasa cuando aparece una vulnerabilidad nueva para la que todavía no hay regla? Así pasó con <b>php2shell</b> en octubre de 2026."];
     if (!cfg.enabled) {
       if (ct < LEAK_T) return ["off0", "⚠ Managed Ruleset desactivado", "No recibirás las reglas de php2shell que Cloudflare está a punto de publicar."];
       if (ct < PATCH_T) return ["off1", "⚠ Sin Managed Ruleset: el exploit entra y filtra datos",
@@ -1389,6 +1418,18 @@ function mountManagedScene(root) {
     S.t = t;
     let ct = t - S.c0;
     if (ct >= T) { cycle(t); ct = 0; }
+    if (!S.sqli && ct >= SQLI_T) {
+      S.sqli = true;
+      bot.classList.remove("sc-dim");
+      markEls.sqli.classList.add("on");
+      setToast("info", "💉 SQLi · ataque conocido", "la regla 100015 ya existe");
+      kit.log("💉 Botnet probando SQL injection en /item?id=", "evt");
+    }
+    if (S.sqli && !S.gap && ct >= SQLI_END) {
+      S.gap = true;
+      bot.classList.add("sc-dim");
+      toast.setAttribute("class", "sc-toast");
+    }
     if (cfg.enabled && !S.ruled && ct >= RULE_T) {
       S.ruled = true;
       newRows.forEach(r => r.classList.add("on"));
@@ -1400,6 +1441,7 @@ function mountManagedScene(root) {
     if (!S.leaked && ct >= LEAK_T) {
       S.leaked = true;
       bot.classList.remove("sc-dim");
+      botSub.textContent = "exploit php2shell";
       markEls.leak.classList.add("on");
       setToast("", "☠️ El exploit se filtró", "ataques antes del anuncio oficial");
       kit.log("☠️ El exploit de php2shell se filtra antes de la fecha oficial", "evt");
@@ -1430,6 +1472,10 @@ function mountManagedScene(root) {
     }
 
     if (ct >= S.nextUsr) { spawn("usr", t); S.nextUsr = ct + 0.9 + Math.random() * 0.6; }
+    if (S.sqli && !S.gap && ct >= S.nextBot) {
+      spawn("sqli", t);
+      S.nextBot = ct + 0.6 + Math.random() * 0.4;
+    } else if (S.gap && !S.leaked) S.nextBot = LEAK_T + 0.3;
     if (S.leaked && ct < ATK_END && ct >= S.nextBot) {
       spawn(S.mutated && Math.random() < 0.45 ? "mut" : "x", t);
       S.nextBot = ct + 0.55 + Math.random() * 0.4;
