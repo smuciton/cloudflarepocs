@@ -913,3 +913,132 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
   box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.78);
 }
 .scene-wrap.scene-full .scene-svg { width: min(100%, calc(58vh * 2.05)); margin: 0 auto; }
+
+/* ---------- Escenas: elementos compartidos ---------- */
+.rl-pkt.neutral rect { fill: #64748B; stroke: #475569; }
+.rl-pkt.good rect { fill: #16A34A; stroke: #15803D; }
+.rl-pkt.bad rect { fill: #DC2626; stroke: #991B1B; }
+.rl-pkt.warn rect { fill: #F59E0B; stroke: #B45309; }
+.rl-pkt.exploit rect { fill: #7C3AED; stroke: #5B21B6; }
+.rl-wire.lane.vis, .rl-wire.lane.adm { stroke: #86EFAC; }
+.rl-wire.lane.bot { stroke: #FDBA74; }
+.sc-float { fill: #111827; stroke: #FFFFFF; stroke-width: 3px; paint-order: stroke; font: 700 13px var(--font-mono); transform-box: fill-box; animation: scfloat 1.1s ease-out forwards; }
+@keyframes scfloat { to { transform: translateY(-28px); opacity: 0; } }
+.sc-hint { fill: #9CA3AF; font: 9px var(--font-body); }
+.sc-label { fill: #9CA3AF; font: 700 8px var(--font-display); letter-spacing: 1.2px; }
+.sc-mono { fill: #6B7280; font: 9px var(--font-mono); }
+.sc-card > rect { fill: #FFFFFF; stroke: #F6821F; stroke-width: 1.4; transition: fill 0.2s, stroke 0.2s; }
+.sc-card.flash > rect { fill: #FEF2F2; stroke: #DC2626; stroke-width: 2.2; }
+.sc-card.hl > rect { fill: #FFF7ED; stroke-width: 2.4; }
+.sc-card.off { opacity: 0.5; }
+.sc-pill-t { font: 700 8px var(--font-display); letter-spacing: 1px; }
+.sc-pill-t.on { fill: #16A34A; }
+.sc-pill-t.off { fill: #94A3B8; }
+.sc-insp > rect { fill: #0F172A; }
+.sc-insp-l { fill: #64748B; font: 700 7.5px var(--font-display); letter-spacing: 1.5px; }
+.sc-insp-t { fill: #E2E8F0; font: 9.5px var(--font-mono); }
+.sc-origin-s { fill: #047857; font: 700 9.5px var(--font-body); }
+.sc-origin-s.bad { fill: #DC2626; }
+.sc-origin.alarm > rect:first-of-type { fill: #FEF2F2; stroke: #DC2626; }
+.sc-dim { opacity: 0.3; transition: opacity 0.4s; }
+
+.rl-controls.sc-seg { gap: 6px; }
+.sc-seg-l { margin-right: 4px; font: 600 11px var(--font-display); letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); }
+.sc-seg .btn.on { background: var(--orange); border-color: var(--orange); color: #0B0B0F; }
+.rl-controls .sc-check { flex: 0 0 auto; min-width: 0; margin-left: auto; gap: 6px; }
+.rl-stat.good b { color: var(--green); }
+.rl-log-line > span { overflow: hidden; text-overflow: ellipsis; }
+.rl-caption code { font-family: var(--font-mono); font-size: 12px; color: var(--cyan); }
+
+/* ---------- Escena: Custom Rules ---------- */
+.sc-cond { cursor: pointer; }
+.sc-cond rect { fill: #F8FAFC; stroke: #E2E8F0; stroke-width: 1; transition: fill 0.2s, stroke 0.2s; }
+.sc-cond:hover rect { stroke: #F6821F; }
+.sc-cond-x { fill: #374151; font: 8.8px var(--font-mono); }
+.sc-badge { fill: #E2E8F0; transition: fill 0.2s; }
+.sc-badge-t { fill: #FFFFFF; font: 700 10px var(--font-body); }
+.sc-cond.cur rect { fill: #FFF7ED; stroke: #F6821F; stroke-width: 2; }
+.sc-cond.yes .sc-badge { fill: #16A34A; }
+.sc-cond.no .sc-badge { fill: #DC2626; }
+.sc-cond.no rect { fill: #FEF2F2; }
+.sc-cond.skip .sc-badge { fill: #94A3B8; }
+.sc-cond.off rect { stroke-dasharray: 4 3; }
+.sc-cond.off .sc-cond-x { fill: #9CA3AF; text-decoration: line-through; }
+.sc-then { fill: #B45309; font: 700 9.5px var(--font-mono); }
+
+/* ---------- Escena: Response Rules ---------- */
+.sc-dev { fill: #FFFFFF; stroke: #94A3B8; stroke-width: 1.5; }
+.sc-dev-bar { fill: #E2E8F0; }
+.sc-dot { fill: #CBD5E1; }
+.sc-url { fill: #475569; font: 8px var(--font-mono); }
+.sc-notch { fill: #CBD5E1; }
+.sc-apphead { fill: #1E3A8A; font: 700 10px var(--font-display); }
+.sc-device.api .sc-dev-browser, .sc-device.browser .sc-dev-phone { display: none; }
+.sc-devlabel { fill: #6B7280; font: 600 9px var(--font-body); }
+.sc-l { opacity: 0; transition: opacity 0.2s; }
+.sc-l.on { opacity: 1; }
+.sc-l.h { fill: #111827; font: 700 10.5px var(--font-body); }
+.sc-l.p { fill: #374151; font: 9.5px var(--font-body); }
+.sc-l.s { fill: #9CA3AF; font: 7.6px var(--font-mono); }
+.sc-l.brand { fill: #F6821F; font: 700 12px var(--font-display); }
+.sc-l.m { fill: #1F2937; font: 7.6px var(--font-mono); }
+.sc-l.err { fill: #DC2626; font: 700 9px var(--font-mono); }
+.sc-banner { opacity: 0; transition: opacity 0.25s; }
+.sc-banner.on { opacity: 1; }
+.sc-banner rect { fill: #F1F5F9; stroke: #94A3B8; }
+.sc-banner text { fill: #475569; font: 700 9px var(--font-body); }
+.sc-banner.good rect { fill: #ECFDF5; stroke: #10B981; }
+.sc-banner.good text { fill: #047857; }
+.sc-banner.bad rect { fill: #FEF2F2; stroke: #DC2626; }
+.sc-banner.bad text { fill: #B91C1C; }
+.sc-arrow { fill: #F6821F; font-size: 10px; }
+.sc-gen > rect { fill: #0F172A; }
+.sc-gen-l { fill: #A5F3FC; font: 8.6px var(--font-mono); opacity: 0; transition: opacity 0.2s; }
+.sc-gen-l.on { opacity: 1; }
+
+/* ---------- Escena: Managed Ruleset ---------- */
+.sc-toast { opacity: 0; transform: translateY(-6px); transition: opacity 0.3s, transform 0.3s; }
+.sc-toast.on { opacity: 1; transform: none; }
+.sc-toast rect { fill: #FEF2F2; stroke: #DC2626; stroke-width: 1.5; }
+.sc-toast .t1 { fill: #B91C1C; font: 700 10px var(--font-body); }
+.sc-toast .t2 { fill: #7F1D1D; font: 8.5px var(--font-mono); }
+.sc-row rect { fill: #F8FAFC; stroke: #E2E8F0; }
+.sc-row text { fill: #374151; font: 8.8px var(--font-mono); }
+.sc-row text.ok { fill: #16A34A; font: 700 10px var(--font-body); }
+.sc-row.new { opacity: 0; transition: opacity 0.4s; }
+.sc-row.new.on { opacity: 1; }
+.sc-row.new.on rect { fill: #FFF7ED; stroke: #F6821F; stroke-width: 1.8; animation: scglow 1.2s ease-in-out 3; }
+@keyframes scglow { 50% { filter: drop-shadow(0 0 6px rgba(246, 130, 31, 0.7)); } }
+.sc-newtag { fill: #F6821F; font: 700 7.5px var(--font-display); letter-spacing: 1px; }
+.sc-dep { fill: #B45309; font: 600 9px var(--font-mono); }
+.sc-pop { fill: #E2E8F0; transition: fill 0.2s; }
+.sc-pop.on { fill: #F6821F; filter: drop-shadow(0 0 3px rgba(246, 130, 31, 0.7)); }
+.sc-tl-track { stroke: #E2E8F0; stroke-width: 3; stroke-linecap: round; }
+.sc-tl-done { stroke: #F6821F; stroke-width: 3; stroke-linecap: round; }
+.sc-tl-mark circle { fill: #FFFFFF; stroke: #94A3B8; stroke-width: 2; }
+.sc-tl-mark text { fill: #6B7280; font: 600 8.5px var(--font-body); }
+.sc-tl-mark.on circle { fill: #F6821F; stroke: #F6821F; }
+.sc-tl-mark.bad.on circle { fill: #DC2626; stroke: #DC2626; }
+.sc-tl-mark.good.on circle { fill: #16A34A; stroke: #16A34A; }
+.sc-tl-head { fill: #1F2937; }
+.sc-tl-comp { fill: #9CA3AF; font: 8px var(--font-body); }
+
+/* ---------- Escena: OWASP Core ---------- */
+.sc-lane { stroke: #CBD5E1; stroke-width: 2; stroke-dasharray: 5 5; }
+.sc-gate rect { fill: #E2E8F0; transition: fill 0.15s; }
+.sc-gate.hit rect { fill: #DC2626; filter: drop-shadow(0 0 6px rgba(220, 38, 38, 0.6)); }
+.sc-gate.clean rect { fill: #86EFAC; }
+.sc-gate .code { fill: #1F2937; font: 700 10px var(--font-mono); }
+.sc-gate .name { fill: #6B7280; font: 8.5px var(--font-body); }
+.sc-decide { stroke: #94A3B8; stroke-dasharray: 3 3; }
+.sc-truth { font: 700 7.5px var(--font-display); letter-spacing: 1px; }
+.sc-truth.atk { fill: #F87171; }
+.sc-truth.ok { fill: #4ADE80; }
+.sc-score { fill: #111827; font: 700 10px var(--font-mono); }
+.sc-gauge-bg { fill: #F1F5F9; stroke: #E2E8F0; }
+.sc-gauge { fill: #F59E0B; transition: fill 0.2s; }
+.sc-gauge.over { fill: #DC2626; }
+.sc-thr-line { stroke: #111827; stroke-width: 2.5; transition: x1 0.3s, x2 0.3s; }
+.sc-tickline { stroke: #CBD5E1; stroke-width: 1; }
+.sc-tick { fill: #9CA3AF; font: 8px var(--font-body); }
+.sc-tick.on { fill: #111827; font-weight: 700; }

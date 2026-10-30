@@ -482,79 +482,19 @@ const LEARN = {
     features: [
       { icon: "🎯", name: "WAF Custom Rules", blurb: "Reglas a tu medida con expresiones sobre cualquier campo del request.",
         detail: "Escribes condiciones sobre IP, URI, método, headers, cookies, ASN, geografía, JA3/JA4, Bot Score o Attack Score — y aplicas acción: block, challenge (Turnstile/JS), skip o log. Ideal para cerrar endpoints por país, frenar scrapers por fingerprint o excluir tráfico interno.",
-        d: { type: "flow",
-          sources: [
-            { icon: "🧑", label: "Tráfico permitido", cls: "good", packet: "GET /" },
-            { icon: "🎭", label: "Fingerprint malo", cls: "bad", packet: "JA3 · país X" }
-          ],
-          module: "Custom Rules", moduleSub: "expression → acción",
-          targets: [
-            { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
-            { icon: "⚙️", label: "Tu acción · block/skip", cls: "bad" }
-          ],
-          steps: [
-            { t: "Llegan las peticiones", d: "Tráfico normal y requests con características específicas (JA3, ASN, geografía, headers).", on: ["s0", "s1", "e-in0", "e-in1"] },
-            { t: "El edge evalúa tu expression", d: "Cada campo del request se compara contra las condiciones que escribiste.", on: ["edge", "dc", "e-dc"] },
-            { t: "Match → tu acción", d: "Si la expression coincide, se ejecuta lo que elegiste: block, challenge, skip o log.", on: ["e-dc", "mod"] },
-            { t: "Resultado por tu regla", d: "El tráfico permitido pasa; el que coincide recibe tu acción configurada — sin tocar el origen.", on: ["e-out0", "chk", "t0", "e-out1", "t1"] }
-          ] } },
+        scene: "customrules" },
       { icon: "⏱️", name: "Rate Limiting Rules", blurb: "Cuenta peticiones por característica y actúa al superar el umbral.",
         detail: "Contadores por IP, sesión, ASN, header o fingerprint en ventanas configurables. Contra fuerza bruta en login, abuso de API y scraping: acciones block, managed challenge o log. Complexity-based counting frena bots que rotan IPs.",
         scene: "ratelimit" },
       { icon: "📤", name: "Response Rules", blurb: "Personaliza la respuesta de bloqueo que ve el usuario.",
         detail: "Define código de estado, content-type y cuerpo de la respuesta de bloqueo — HTML con tu marca o JSON consistente para clientes de API, en vez de la página genérica. Útil para que el bloqueo 'hable el idioma' de tu app.",
-        d: { type: "flow",
-          sources: [
-            { icon: "🧑", label: "Usuario legítimo", cls: "good", packet: "GET /" },
-            { icon: "💀", label: "Request bloqueado", cls: "bad", packet: "match de regla" }
-          ],
-          module: "Response Rule", moduleSub: "código + cuerpo custom",
-          targets: [
-            { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
-            { icon: "📄", label: "Tu respuesta · JSON/HTML", cls: "bad" }
-          ],
-          steps: [
-            { t: "Llegan las peticiones", d: "Tráfico limpio y requests que disparan una regla del WAF.", on: ["s0", "s1", "e-in0", "e-in1"] },
-            { t: "La regla bloquea", d: "El request coincide con una regla — hasta aquí es un bloqueo normal.", on: ["edge", "dc", "e-dc", "mod"] },
-            { t: "Tu respuesta personalizada", d: "En vez de la página genérica, el cliente recibe TU código y cuerpo: HTML con tu marca o JSON para APIs.", on: ["e-dc", "mod"] },
-            { t: "Bloqueo con tu idioma", d: "El usuario ve una respuesta consistente con tu producto — mejor UX incluso al bloquear.", on: ["e-out0", "chk", "t0", "e-out1", "t1"] }
-          ] } },
+        scene: "response" },
       { icon: "🛡️", name: "WAF Managed Ruleset", blurb: "Reglas escritas y mantenidas por Cloudflare contra exploits conocidos.",
         detail: "Cubierto por el equipo de seguridad de Cloudflare: se actualiza ante cada nuevo exploit (zero-days incluidos, a veces en horas). Cubre ataques genéricos, inyección, anomalías HTTP y rutas sensibles como /.env o wp-admin.",
-        d: { type: "flow",
-          sources: [
-            { icon: "🧑", label: "Usuario legítimo", cls: "good", packet: "GET /" },
-            { icon: "☠️", label: "Exploit conocido", cls: "bad", packet: "CVE · zero-day" }
-          ],
-          module: "Managed Rules", moduleSub: "actualizado por CF",
-          targets: [
-            { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
-            { icon: "⛔", label: "Bloqueado · 403", cls: "bad" }
-          ],
-          steps: [
-            { t: "Llegan las peticiones", d: "Tráfico normal y exploits conocidos buscando endpoints vulnerables.", on: ["s0", "s1", "e-in0", "e-in1"] },
-            { t: "Firmas en el edge", d: "Las reglas escritas por Cloudflare comparan cada request contra ataques conocidos.", on: ["edge", "dc", "e-dc"] },
-            { t: "Se actualiza solo", d: "Cuando sale un CVE nuevo, el equipo de CF agrega la regla — tú no haces nada.", on: ["e-dc", "mod"] },
-            { t: "Zero-day bloqueado", d: "El exploit recibe 403 en el edge; tu origen sigue sin saber que existía.", on: ["e-out0", "chk", "t0", "e-out1", "t1"] }
-          ] } },
+        scene: "managed" },
       { icon: "📚", name: "WAF Core (OWASP) Ruleset", blurb: "La implementación Cloudflare del OWASP ModSecurity Core Rule Set.",
         detail: "El estándar de la industria contra el OWASP Top 10: cada regla aporta a un score de anomalía (paranoia levels) que tú calibras para balancear protección vs. falsos positivos. Excelente base antes de tus custom rules.",
-        d: { type: "flow",
-          sources: [
-            { icon: "🧑", label: "Usuario legítimo", cls: "good", packet: "GET /" },
-            { icon: "💣", label: "Payload OWASP", cls: "bad", packet: "Top 10 · SQLi/XSS" }
-          ],
-          module: "OWASP Core", moduleSub: "anomaly score → umbral",
-          targets: [
-            { icon: "🖥️", label: "Servidor de Origen", cls: "good" },
-            { icon: "⛔", label: "Score superado · 403", cls: "bad" }
-          ],
-          steps: [
-            { t: "Llegan las peticiones", d: "Tráfico limpio y payloads del OWASP Top 10 (inyección, XSS, LFI).", on: ["s0", "s1", "e-in0", "e-in1"] },
-            { t: "Cada regla suma puntos", d: "Las reglas OWASP no bloquean de una: cada match suma a un anomaly score.", on: ["edge", "dc", "e-dc"] },
-            { t: "Score vs. umbral", d: "Tú calibras el nivel de paranoia: más alto = más protección, más falsos positivos.", on: ["e-dc", "mod"] },
-            { t: "Bloqueo por anomalía", d: "Si el score supera el umbral → 403. Así se balancean ataques ambiguos.", on: ["e-out0", "chk", "t0", "e-out1", "t1"] }
-          ] } }
+        scene: "owasp" }
     ],
     analogy: "Es como un guardia en la puerta del club que conoce todas las tácticas de los intrusos: revisa a cada persona que intenta entrar y no deja pasar a nadie sospechoso — y lo hace en milisegundos, sin hacer fila.",
     how: "Cada petición HTTP/HTTPS pasa por el punto de presencia (PoP) de Cloudflare más cercano antes de tocar tu origen. Ahí el WAF la compara contra los Managed Rulesets (Cloudflare Managed + OWASP Core) y la puntúa con ML mediante el WAF Attack Score. Si coincide con un ataque, se bloquea en el edge: el origen ni se entera.",
