@@ -212,11 +212,13 @@ function viewInicio() {
 function buildCloudMap() {
   const cols = [36, 284, 532], CW = 212;
   const statusTag = st => st === "live" ? "✓ DISPONIBLE" : "🚧 EN CONSTRUCCIÓN";
+  const ICONS = { waf: "🛡️", bots: "🤖", api: "🔌", ddos: "🌊", ratelimit: "⏱️", pageshield: "👁️", ssl: "🔒" };
   const item = ([label, route, st], area, x, y, w) => {
     const status = st || area.status;
+    const icon = status === "live" ? ICONS[route?.split("/")[1]] : "";
     return `<g class="cm-item ${status}" ${route ? `data-cm="${route}"` : ""} data-label="${label}" data-st="${status}">
       <rect x="${x}" y="${y - 12}" width="${w}" height="16" rx="4"/>
-      <text x="${x + w / 2}" y="${y}" text-anchor="middle">${status === "live" ? "▸ " : ""}${label}</text></g>`;
+      <text x="${x + w / 2}" y="${y}" text-anchor="middle">${icon ? `${icon} ` : ""}${label}</text></g>`;
   };
   const s = [`<svg class="diagram cm-map" viewBox="0 0 780 470" xmlns="http://www.w3.org/2000/svg">`];
   s.push(`<rect class="d-bg" x="0" y="0" width="780" height="470" rx="14"/>`);
