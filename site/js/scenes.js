@@ -1195,7 +1195,8 @@ function mountResponseScene(root) {
 // ── Escena: WAF Managed Ruleset · caso real php2shell (CVE-2026-109618 / 109619) ──
 // Basado en https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 function mountManagedScene(root) {
-  const T = 34, SQLI_T = 1, SQLI_END = 5, RULE_T = 6, DEP = 2.5, LEAK_T = 9, DISC_T = 15, MUT_T = 17, PATCH_T = 27, ATK_END = 32;
+  // RULE_T es solo la posición inicial del marcador: la regla se publica cuando Cloudflare detecta los primeros exploits (ZERO_PASS)
+  const T = 34, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, RULE_T = 8, DEP = 2.5, ZERO_PASS = 2, DISC_T = 15, MUT_T = 17, PATCH_T = 27, ATK_END = 32;
   const PATH = {
     usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]],
     out: [[560, 200], [646, 200]], oback: [[646, 226], [560, 226]], exfil: [[240, 280], [98, 284]]
@@ -1215,7 +1216,7 @@ function mountManagedScene(root) {
       ${isNew ? `<text class="sc-newtag" x="528" y="${119.5 + i * 23}" text-anchor="end">NUEVA</text>` : `<text class="ok" x="528" y="${120 + i * 23}" text-anchor="end">✓</text>`}</g>`).join("");
   const dots = Array.from({ length: DOTS }, (_, i) =>
     `<circle class="sc-pop" cx="${272 + (i % 14) * 19.5}" cy="${262 + Math.floor(i / 14) * 15}" r="4"/>`).join("");
-  const marks = [[SQLI_T, "SQLi", "good", "sqli"], [RULE_T, "Reglas CF", "good", "rule"], [LEAK_T, "Filtración", "bad", "leak"], [DISC_T, "Divulgación", "bad", "disc"], [PATCH_T, "Tu parche", "", "patch"]];
+  const marks = [[SQLI_T, "SQLi", "good", "sqli"], [LEAK_T, "Día cero", "bad", "leak"], [RULE_T, "Reglas CF", "good", "rule"], [DISC_T, "Divulgación", "bad", "disc"], [PATCH_T, "Tu parche", "", "patch"]];
 
   const svg = sceneFrame({
     edge: [240, 44, 320, 282],
@@ -1273,11 +1274,12 @@ function mountManagedScene(root) {
     toastT2.textContent = b;
   };
   const count = (k, n = 1) => { S[k] += n; kit.out(k, S[k]); };
+  const moveMark = (m, x) => { m.querySelector("circle").setAttribute("cx", x); m.querySelector("text").setAttribute("x", x); };
 
   const cycle = t => {
     S.packets.forEach(p => p.g.remove());
     Object.assign(S, {
-      c0: t, packets: [], sqli: false, gap: false, ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
+      c0: t, packets: [], zeroPass: 0, ruleAt: null, sqli: false, gap: false, ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
       lastLeak: -9, lit: 0, nextUsr: 0.2, nextBot: SQLI_T + 0.2, order: shuffle([...Array(DOTS).keys()])
     });
     toast.setAttribute("class", "sc-toast");
@@ -1291,6 +1293,7 @@ function mountManagedScene(root) {
     mrPill.textContent = cfg.enabled ? "AUTO-UPDATE" : "DESACTIVADO";
     mrPill.setAttribute("class", `sc-pill-t sc-mr-pill ${cfg.enabled ? "on" : "off"}`);
     markEls.rule.style.opacity = cfg.enabled ? "" : "0.3";
+    moveMark(markEls.rule, tlX(RULE_T));
     originSub.textContent = "PHP 8.x · WordPress";
     botSub.textContent = "inyección SQL";
     hint.textContent = "PHP corre en ~70% de los sitios web (WordPress, Magento…)";
@@ -1341,7 +1344,10 @@ function mountManagedScene(root) {
       }
       Object.assign(p, { leg: "out", path: PATH.out, dur: 0.7, t0: t });
       if (p.kind === "mut") kit.logReq(p.ip, `POST /index.php #${p.n}`, "⚠ variante evadió la firma", "warn");
-      else if (p.kind === "x") kit.logReq(p.ip, `POST /index.php #${p.n}`, "⚠ llegó al origen", "bad");
+      else if (p.kind === "x") {
+        if (!S.ruled) S.zeroPass++;
+        kit.logReq(p.ip, `POST /index.php #${p.n}`, !cfg.enabled ? "⚠ llegó al origen" : !S.ruled ? "⚠ día cero · aún sin regla" : "⚠ llegó · despliegue en curso", "bad");
+      }
       return;
     }
     if (p.leg === "out") {
@@ -1394,18 +1400,19 @@ function mountManagedScene(root) {
         "La botnet prueba <code>' OR 1=1--</code>. La regla <b>100015</b> ya existe en el Managed Ruleset desde hace años: cada intento rebota con <b>403</b>. Este es el día a día del WAF."]
       : ["sqlioff", "⚠ Sin Managed Ruleset: el SQLi llega al origen",
         "Sin la regla 100015, cada <code>' OR 1=1--</code> llega a tu base de datos a través de tu aplicación."];
-    if (ct < RULE_T) return ["gap", "⏭ Ahora, un ataque que nadie conocía",
+    if (ct < LEAK_T) return ["gap", "⏭ Ahora, un ataque que nadie conocía",
       "¿Qué pasa cuando aparece una vulnerabilidad nueva para la que todavía no hay regla? Así pasó con <b>php2shell</b> en octubre de 2026."];
     if (!cfg.enabled) {
-      if (ct < LEAK_T) return ["off0", "⚠ Managed Ruleset desactivado", "No recibirás las reglas de php2shell que Cloudflare está a punto de publicar."];
       if (ct < PATCH_T) return ["off1", "⚠ Sin Managed Ruleset: el exploit entra y filtra datos",
         "Cada intento llega a tu origen, PHP filtra memoria en la respuesta y los datos regresan al atacante. Así sigues hasta que tu equipo actualice PHP."];
       return ["off2", "🔧 Por fin actualizas PHP", "Todo el tiempo entre la filtración y tu parche, tu sitio estuvo expuesto."];
     }
-    if (ct < LEAK_T) return ["rule", "🛡 Cloudflare despliega las reglas antes del anuncio",
-      "En coordinación con PHP Foundation, Wiz y OpenAI, Cloudflare publica las reglas <b>PHP RCE</b> en el Managed Ruleset unas <b>9 horas antes</b> de la divulgación pública. Mira cómo se encienden los PoPs."];
-    if (ct < DISC_T) return ["leak", "☠️ La vulnerabilidad se filtra y empiezan los ataques",
-      "El exploit circula antes del anuncio oficial. Las botnets atacan, pero tus sitios ya tienen la regla: cada intento rebota con <b>403</b> en el edge."];
+    if (!S.ruled) return ["zero", "☠️ Día cero: el exploit se filtra y todavía no hay regla",
+      "Los primeros intentos de <b>php2shell</b> llegan a tu origen: PHP filtra memoria y los datos 💾 regresan al atacante. Cloudflare ve ese tráfico de ataque en toda su red…"];
+    if (!S.live) return ["deploy", "⚡ Cloudflare reacciona rápido y despliega la regla",
+      "En coordinación con PHP Foundation, Wiz y OpenAI, publica las reglas <b>PHP RCE</b> en el Managed Ruleset para todos los planes, incluido Free. Mientras se encienden los PoPs, algún intento todavía se cuela."];
+    if (ct < DISC_T) return ["blocked", "✅ Despliegue global listo: cada intento rebota",
+      "Desde ahora los exploits reciben <b>403</b> en el edge, aunque tu servidor siga sin parche. Todo esto pasó <b>horas antes</b> de la divulgación pública."];
     if (ct < MUT_T) return ["disc", "📢 Divulgación pública: CVE-2026-109618 y 109619",
       "php2shell afecta a PHP 5.4 o posterior y permite RCE, denegación de servicio y exposición de datos. Tu servidor sigue sin parche, pero ya estaba protegido desde antes."];
     if (ct < PATCH_T) return ["mut", "🧬 Los atacantes mutan el payload",
@@ -1430,20 +1437,22 @@ function mountManagedScene(root) {
       bot.classList.add("sc-dim");
       toast.setAttribute("class", "sc-toast");
     }
-    if (cfg.enabled && !S.ruled && ct >= RULE_T) {
+    if (cfg.enabled && S.leaked && !S.ruled && S.zeroPass >= ZERO_PASS) {
       S.ruled = true;
+      S.ruleAt = ct;
       newRows.forEach(r => r.classList.add("on"));
       rfCard.classList.remove("sc-dim");
       markEls.rule.classList.add("on");
-      setToast("info", "🤝 Divulgación coordinada", "reglas listas ~9 h antes del anuncio");
-      kit.log(`🛡 Cloudflare publica ${RULES[1][0]} y ${RULES[2][0]} · PHP RCE (php2shell)`, "evt");
+      moveMark(markEls.rule, tlX(ct));
+      setToast("info", "⚡ Reacción rápida", "reglas publicadas para todos los planes");
+      kit.log(`⚡ Cloudflare detecta el ataque y publica ${RULES[1][0]} y ${RULES[2][0]} · PHP RCE`, "evt");
     }
     if (!S.leaked && ct >= LEAK_T) {
       S.leaked = true;
       bot.classList.remove("sc-dim");
       botSub.textContent = "exploit php2shell";
       markEls.leak.classList.add("on");
-      setToast("", "☠️ El exploit se filtró", "ataques antes del anuncio oficial");
+      setToast("", "☠️ Día cero · exploit filtrado", "todavía no existe una regla");
       kit.log("☠️ El exploit de php2shell se filtra antes de la fecha oficial", "evt");
     }
     if (!S.disclosed && ct >= DISC_T) {
@@ -1457,7 +1466,7 @@ function mountManagedScene(root) {
       setToast("", "🧬 Payload mutado", "intentan evadir la firma");
       kit.log("🧬 Los atacantes mutan el payload para evadir la regla", "evt");
     }
-    const frac = S.ruled ? Math.min(1, (ct - RULE_T) / DEP) : 0;
+    const frac = S.ruled ? Math.min(1, (ct - S.ruleAt) / DEP) : 0;
     while (S.lit < Math.floor(frac * DOTS)) dotEls[S.order[S.lit++]].classList.add("on");
     if (S.ruled && frac >= 1 && !S.live) {
       S.live = true;
