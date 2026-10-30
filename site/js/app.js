@@ -749,7 +749,11 @@ function activeScene(id) {
 
 function diagramSlotHTML(id) {
   const sc = activeScene(id);
-  if (sc) return `<div class="scene-wrap" data-scene="${sc}"></div>`;
+  if (sc) {
+    const f = state.diagram?.feat;
+    const title = f != null ? LEARN[id].features[f].name : PRODUCTS.find(p => p.id === id)?.name;
+    return `<div class="scene-wrap" data-scene="${sc}" data-title="${title || ""}"></div>`;
+  }
   const d = activeDiagram(id);
   if (!d) return "";
   return `${buildDiagram(d)}
@@ -771,7 +775,7 @@ function mountSlot(id) {
   state.scene?.destroy();
   state.scene = null;
   const el = $("#diagram-slot .scene-wrap");
-  if (el) state.scene = mountScene(el.dataset.scene, el);
+  if (el) state.scene = mountScene(el.dataset.scene, el, el.dataset.title);
   else setDiagramStep(state.diagram?.product === id ? state.diagram.step : 0);
 }
 

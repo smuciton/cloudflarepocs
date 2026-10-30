@@ -1042,3 +1042,36 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-tickline { stroke: #CBD5E1; stroke-width: 1; }
 .sc-tick { fill: #9CA3AF; font: 8px var(--font-body); }
 .sc-tick.on { fill: #111827; font-weight: 700; }
+
+/* ---------- Escenas: pantalla de inicio + ventana tipo Mac ---------- */
+.scene-stage { position: relative; }
+.scene-start {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  background: rgba(11, 11, 15, 0.55);
+  backdrop-filter: blur(3px);
+  border-radius: 12px;
+}
+.scene-start .btn { min-width: 240px; }
+.scene-start .btn-primary { font-size: 15px; padding: 11px 22px; box-shadow: 0 0 22px rgba(246, 130, 31, 0.45); }
+
+.scene-titlebar { display: none; }
+.scene-wrap.scene-full { padding-top: 0; }
+.scene-full .scene-titlebar {
+  display: flex; align-items: center; gap: 8px;
+  position: sticky; top: 0; z-index: 3;
+  margin: 0 -24px 16px; padding: 11px 16px;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+}
+.mac-btn {
+  width: 13px; height: 13px; padding: 0;
+  border: none; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font: 700 8px var(--font-body); line-height: 1; color: transparent;
+}
+.mac-btn.close { background: #FF5F57; cursor: pointer; }
+.mac-btn.min { background: #FEBC2E; }
+.mac-btn.max { background: #28C840; }
+.scene-titlebar:hover .mac-btn.close { color: #4D0000; }
+.scene-title { margin-left: 10px; font: 600 12px var(--font-display); letter-spacing: 0.5px; color: var(--text-dim); }

@@ -10,8 +10,46 @@ const SCENES = {
   owasp: mountOwaspScene
 };
 
-function mountScene(name, root) {
-  return SCENES[name] ? SCENES[name](root) : null;
+function mountScene(name, root, title = "") {
+  const scene = SCENES[name]?.(root);
+  if (scene) addSceneChrome(root, scene, title);
+  return scene;
+}
+
+// Pantalla de inicio (la escena arranca en pausa) + barra de ventana tipo Mac para el modo ampliado
+function addSceneChrome(root, scene, title) {
+  const bar = document.createElement("div");
+  bar.className = "scene-titlebar";
+  bar.innerHTML = `
+    <button class="mac-btn close" data-chrome="close" title="Cerrar" aria-label="Cerrar">✕</button>
+    <span class="mac-btn min"></span><span class="mac-btn max"></span>
+    <span class="scene-title">${esc(title)} · simulación en vivo</span>`;
+  root.prepend(bar);
+
+  const svg = root.querySelector(".scene-svg");
+  const stage = document.createElement("div");
+  stage.className = "scene-stage";
+  svg.before(stage);
+  stage.appendChild(svg);
+  const overlay = document.createElement("div");
+  overlay.className = "scene-start";
+  overlay.innerHTML = `
+    <button class="btn btn-primary" data-chrome="start">▶ Iniciar animación</button>
+    <button class="btn" data-chrome="startfull">⛶ Iniciar en pantalla completa</button>`;
+  stage.appendChild(overlay);
+
+  const cap = root.querySelector(".rl-caption");
+  if (cap && !cap.textContent.trim()) {
+    cap.innerHTML = "<strong>▶ Lista para iniciar</strong><p>Presiona <b>Iniciar animación</b> para ver la simulación, o iníciala en pantalla completa para presentarla.</p>";
+  }
+
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-chrome]");
+    if (!b) return;
+    if (b.dataset.chrome === "start") scene.start();
+    else if (b.dataset.chrome === "startfull") { scene.full(true); scene.start(); }
+    else if (b.dataset.chrome === "close") scene.full(false);
+  });
 }
 
 function mountRateLimitScene(root) {
@@ -236,6 +274,7 @@ function mountRateLimitScene(root) {
 
   function phase(now) {
     const c = Math.min(st.hits.atk.length, cfg.threshold), thr = cfg.threshold, w = cfg.window;
+    if (!st.running && st.t === 0) return ["ready", "▶ Lista para iniciar", "Presiona <b>Iniciar</b> para ver cómo el edge cuenta cada intento del script hasta llegar al umbral."];
     if (!st.running) return ["pause", "⏸ Simulación en pausa", "Reanuda para seguir viendo cómo el edge cuenta y responde a cada intento."];
     if (st.blockedUntil.atk > now) return ["block", "🚫 Umbral superado: Cloudflare bloquea al script",
       `Cada intento nuevo del script recibe <b>429</b> en el edge durante el mitigation timeout (${cfg.timeout} s) — mira cómo rebotan por la línea roja. El origen deja de recibirlos y el usuario normal sigue pasando: su contador por IP es independiente.`];
@@ -315,13 +354,23 @@ function mountRateLimitScene(root) {
     raf = requestAnimationFrame(frame);
   }
 
+  const syncPlay = () => { els.playBtn.textContent = st.running ? "⏸ Pausa" : st.t > 0 ? "▶ Reanudar" : "▶ Iniciar"; };
+
   function reset() {
+    const run = st ? st.running : false;
     layer.innerHTML = "";
     logEl.innerHTML = "";
     st = fresh();
+    st.running = run;
     buildCells();
-    els.playBtn.textContent = "⏸ Pausa";
+    syncPlay();
     pushLog("Escuchando eventos de seguridad en /login…", "hint");
+  }
+
+  function start() {
+    st.running = true;
+    syncPlay();
+    root.querySelector(".scene-start")?.remove();
   }
 
   function toggleFull(force) {
@@ -333,8 +382,7 @@ function mountRateLimitScene(root) {
     const b = e.target.closest("button[data-rl]");
     if (!b) return;
     if (b.dataset.rl === "play") {
-      st.running = !st.running;
-      b.textContent = st.running ? "⏸ Pausa" : "▶ Reanudar";
+      if (st.running) { st.running = false; syncPlay(); } else start();
     } else if (b.dataset.rl === "reset") reset();
     else if (b.dataset.rl === "full") toggleFull();
   });
@@ -357,6 +405,8 @@ function mountRateLimitScene(root) {
   raf = requestAnimationFrame(frame);
 
   return {
+    start,
+    full: toggleFull,
     destroy() {
       cancelAnimationFrame(raf);
       document.removeEventListener("keydown", onKey);
@@ -514,14 +564,19 @@ function sceneKit(root, { svg, controls = "", stats = "", consoleTitle = "Securi
 }
 
 function runScene(root, kit, { reset, tick }) {
-  let raf, last = null, running = true, t = 0;
+  let raf, last = null, running = false, t = 0;
   const playBtn = kit.q('[data-sc="play"]'), fullBtn = kit.q('[data-sc="full"]');
+  const syncPlay = () => { playBtn.textContent = running ? "⏸ Pausa" : t > 0 ? "▶ Reanudar" : "▶ Iniciar"; };
   const restart = () => {
     kit.clear();
     t = 0;
-    running = true;
-    playBtn.textContent = "⏸ Pausa";
     reset();
+    syncPlay();
+  };
+  const start = () => {
+    running = true;
+    syncPlay();
+    root.querySelector(".scene-start")?.remove();
   };
   const toggleFull = force => {
     const on = root.classList.toggle("scene-full", force);
@@ -530,7 +585,7 @@ function runScene(root, kit, { reset, tick }) {
   root.addEventListener("click", e => {
     const b = e.target.closest("button[data-sc]");
     if (!b) return;
-    if (b.dataset.sc === "play") { running = !running; b.textContent = running ? "⏸ Pausa" : "▶ Reanudar"; }
+    if (b.dataset.sc === "play") { if (running) { running = false; syncPlay(); } else start(); }
     else if (b.dataset.sc === "reset") restart();
     else toggleFull();
   });
@@ -544,7 +599,7 @@ function runScene(root, kit, { reset, tick }) {
   };
   restart();
   raf = requestAnimationFrame(frame);
-  return { destroy() { cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); } };
+  return { start, full: toggleFull, destroy() { cancelAnimationFrame(raf); document.removeEventListener("keydown", onKey); } };
 }
 
 // ── Escena: WAF Custom Rules ────────────────────────────────────────────────
