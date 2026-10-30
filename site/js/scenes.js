@@ -605,12 +605,12 @@ function runScene(root, kit, { reset, tick }) {
 // ── Escena: WAF Custom Rules ────────────────────────────────────────────────
 function mountCustomRulesScene(root) {
   const LANES = {
-    vis: { icon: "🧑", label: "Visitantes", y: 95, cls: "good" },
-    adm: { icon: "👩‍💼", label: "Admin desde MX", y: 195, cls: "good" },
-    bot: { icon: "🤖", label: "Bots / scrapers", y: 295, cls: "bad" }
+    vis: { icon: "🧑", who: "Visitante", label: "Visitantes", y: 95, cls: "good" },
+    adm: { icon: "👩‍💼", who: "Admin", label: "Admin desde MX", y: 195, cls: "good" },
+    bot: { icon: "🤖", who: "Bot", label: "Bots / scrapers", y: 295, cls: "bad" }
   };
-  const ENTRY = [240, 236], HOLD = [194, 236], EXIT = [[560, 236], [646, 236]];
-  const lanePath = k => [[98, LANES[k].y], ENTRY];
+  const ENTRY = [240, 236], HOLD = [196, 236], EXIT = [[560, 236], [646, 236]];
+  const lanePath = k => [[98, LANES[k].y], HOLD];
   const POOL = [
     { lane: "vis", path: "/productos", cc: "US", score: 88 },
     { lane: "vis", path: "/carrito", cc: "MX", score: 91 },
@@ -639,6 +639,9 @@ function mountCustomRulesScene(root) {
   };
   const STEP = 0.42;
   const cfg = { action: "block", enabled: [true, true, true] };
+  // Cada cápsula lleva el ícono de su origen y su número, así se distingue de quién es cada respuesta
+  const tag = r => `${LANES[r.lane].icon} #${r.n}`;
+  const pillW = s => Math.round(18 + s.replace(/[^\x20-\x7E]/g, "").length * 5.4 + (/[^\x20-\x7E]/.test(s) ? 14 : 0));
 
   const rows = CONDS.map((c, i) => `
     <g class="sc-cond" data-cond="${i}">
@@ -663,7 +666,8 @@ function mountCustomRulesScene(root) {
         <text class="sc-insp-t" x="266" y="245">—</text>
       </g>
       <g class="rl-status ok sc-verdict"><rect x="270" y="262" width="260" height="30" rx="15"/><text x="400" y="281" text-anchor="middle"></text></g>
-      <text class="sc-hint" x="400" y="318" text-anchor="middle">👆 Haz clic en una condición para activarla / desactivarla</text>`
+      <text class="sc-rulenote" x="400" y="308" text-anchor="middle">Acción solo si TODAS se cumplen · sin match = pasa</text>
+      <text class="sc-hint" x="400" y="324" text-anchor="middle">👆 Haz clic en una condición para activarla / desactivarla</text>`
   });
   const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Acción al hacer match</span>
     ${Object.entries(ACTIONS).map(([k, a]) => `<button class="btn btn-sm" data-act="${k}">${a.label}</button>`).join("")}</div>`;
@@ -714,8 +718,8 @@ function mountCustomRulesScene(root) {
 
   const spawn = t => {
     const r = { ...draw(), n: ++S.n };
-    const label = `#${r.n} ${r.path.length > 10 ? r.path.slice(0, 9) + "…" : r.path}`;
-    S.packets.push({ r, g: kit.pill("neutral", label, 84), leg: "in", path: lanePath(r.lane), t0: t, dur: 0.9 });
+    const label = tag(r);
+    S.packets.push({ r, g: kit.pill("neutral", label, pillW(label)), leg: "in", path: lanePath(r.lane), t0: t, dur: 0.9 });
   };
 
   const arrive = (p, t) => {
@@ -734,18 +738,19 @@ function mountCustomRulesScene(root) {
     S.cur = null;
     if (c.result && a.back) {
       kit.impact(ENTRY);
-      kit.relabel(p.g, a.cls, a.pill, a.pill.length > 4 ? 84 : 44);
+      const label = `${tag(r)} ${a.pill}`;
+      kit.relabel(p.g, a.cls, label, pillW(label));
       p.leg = "back";
       p.path = [HOLD, [98, LANES[r.lane].y]];
       p.dur = 0.85;
-      kit.logReq(`${r.cc} · score ${r.score}`, r.path, a.res, "bad");
+      kit.logReq(`${LANES[r.lane].who} ${r.cc} · ${r.score}`, r.path, `${a.res} · match`, "bad");
     } else {
-      if (c.result) kit.relabel(p.g, a.cls, `#${r.n} ${a.pill}`, 70);
-      else kit.relabel(p.g, "good", `#${r.n} 200`, 64);
+      const label = `${tag(r)} ${c.result ? a.pill : "200"}`;
+      kit.relabel(p.g, c.result ? a.cls : "good", label, pillW(label));
       p.leg = "out";
       p.path = EXIT;
       p.dur = 0.75;
-      kit.logReq(`${r.cc} · score ${r.score}`, r.path, c.result ? a.res : "200 sin match", c.result ? "warn" : "ok");
+      kit.logReq(`${LANES[r.lane].who} ${r.cc} · ${r.score}`, r.path, c.result ? `${a.res} · match` : "200 · sin match", c.result ? "warn" : "ok");
     }
     p.t0 = t;
   };
@@ -760,7 +765,7 @@ function mountCustomRulesScene(root) {
       const p = S.queue.shift();
       S.cur = { p, t0: t, stage: -1, result: null, shown: false };
       condEls.forEach((g, i) => { setBadge(i, null); g.classList.remove("cur"); });
-      insp.textContent = `#${p.r.n} · ${p.r.path} · país ${p.r.cc} · bot score ${p.r.score}`;
+      insp.textContent = `${tag(p.r)} ${LANES[p.r.lane].who} · ${p.r.path} · ${p.r.cc} · score ${p.r.score}`;
       setVerdict("near", "EVALUANDO…");
       S.eval++;
       kit.out("eval", S.eval);
@@ -807,7 +812,7 @@ function mountCustomRulesScene(root) {
     const waiting = S.packets.filter(p => p.leg === "wait");
     waiting.forEach(p => {
       const i = S.queue.indexOf(p);
-      kit.place(p.g, i < 0 ? HOLD : [HOLD[0], HOLD[1] + 20 * (i + 1)]);
+      kit.place(p.g, i < 0 ? HOLD : [HOLD[0] - 58, HOLD[1] + 22 * i]);
     });
     S.packets = waiting.concat(kit.move(S.packets.filter(p => p.leg !== "wait"), t, arrive));
     evaluate(t);
