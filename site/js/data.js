@@ -490,7 +490,7 @@ const LEARN = {
         detail: "Dos usos comunes: endurecer las respuestas legítimas de tu origen (quitar headers que revelan tu stack como Server o X-Powered-By y agregar HSTS o X-Frame-Options) sin tocar el servidor, y personalizar la respuesta de bloqueo con tu marca en HTML o con JSON consistente para clientes de API.",
         scene: "response" },
       { icon: "🛡️", name: "WAF Managed Ruleset", blurb: "Reglas escritas y mantenidas por Cloudflare contra exploits conocidos.",
-        detail: "Cubierto por el equipo de seguridad de Cloudflare: se actualiza ante cada nuevo exploit (zero-days incluidos, a veces en horas). Cubre ataques genéricos, inyección, anomalías HTTP y rutas sensibles como /.env o wp-admin.",
+        detail: "Mantenido por el equipo de seguridad de Cloudflare y actualizado ante cada nuevo exploit. Ejemplo real: con php2shell (CVE-2026-109618/109619, octubre 2026) Cloudflare desplegó las reglas ~9 horas antes de la divulgación pública, para todos los planes incluido Free, y sumó detección de transacción completa para bloquear respuestas del origen con datos filtrados.",
         scene: "managed" },
       { icon: "📚", name: "WAF Core (OWASP) Ruleset", blurb: "La implementación Cloudflare del OWASP ModSecurity Core Rule Set.",
         detail: "El estándar de la industria contra el OWASP Top 10: cada regla aporta a un score de anomalía (paranoia levels) que tú calibras para balancear protección vs. falsos positivos. Excelente base antes de tus custom rules.",

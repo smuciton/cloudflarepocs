@@ -1123,3 +1123,9 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-gen-l.leak { fill: #FBBF24; }
 .sc-gen-l.dim { fill: #64748B; font-style: italic; }
 .sc-url { font-size: 7.2px; }
+
+/* ---------- Managed Ruleset: caso php2shell ---------- */
+.sc-toast.info rect { fill: #EFF6FF; stroke: #3B82F6; }
+.sc-toast.info .t1 { fill: #1E40AF; }
+.sc-toast.info .t2 { fill: #1E3A8A; }
+.sc-card.sc-rf.hl > rect { fill: #EFF6FF; stroke: #3B82F6; }

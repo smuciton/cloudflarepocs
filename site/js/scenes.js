@@ -1192,91 +1192,112 @@ function mountResponseScene(root) {
   return runScene(root, kit, { reset, tick });
 }
 
-// ── Escena: WAF Managed Ruleset (zero-day) ──────────────────────────────────
+// ── Escena: WAF Managed Ruleset · caso real php2shell (CVE-2026-109618 / 109619) ──
+// Basado en https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 function mountManagedScene(root) {
-  const T = 26, CVE_T = 3, PUB_T = 9, DEP = 2.5, PATCH_T = 20, ATK_END = 23;
-  const PATH = { usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]], out: [[560, 210], [646, 210]] };
-  const RULES = [["100015", "SQLi · inyección genérica"], ["100173", "XSS · script reflejado"], ["100201", "Path traversal · ../"]];
-  const NEW = ["100734", "CVE-2026-31337 · RCE"];
-  const DOTS = 42;
+  const T = 30, RULE_T = 2, DEP = 2.5, LEAK_T = 5, DISC_T = 11, MUT_T = 13, PATCH_T = 24, ATK_END = 28;
+  const PATH = {
+    usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]],
+    out: [[560, 200], [646, 200]], oback: [[646, 226], [560, 226]], exfil: [[240, 280], [98, 284]]
+  };
+  const RULES = [
+    ["100015", "SQLi · inyección genérica", false],
+    ["c1d409ad", "PHP RCE · CVE-2026-109618/9", true],
+    ["f9a45927", "PHP RCE · CVE-2026-109618/9 #2", true]
+  ];
+  const DOTS = 28;
   const tlX = s => 40 + 700 * (s / T);
   const cfg = { enabled: true };
 
-  const rows = RULES.map(([id, name], i) => `
-    <g class="sc-row"><rect x="262" y="${108 + i * 24}" width="276" height="20" rx="4"/>
-      <text x="270" y="${122 + i * 24}">${id} · ${name}</text>
-      <text class="ok" x="528" y="${122.5 + i * 24}" text-anchor="end">✓</text></g>`).join("");
+  const rows = RULES.map(([id, name, isNew], i) => `
+    <g class="sc-row ${isNew ? "new" : ""}"><rect x="262" y="${106 + i * 23}" width="276" height="19" rx="4"/>
+      <text x="270" y="${119.5 + i * 23}">${id} · ${name}</text>
+      ${isNew ? `<text class="sc-newtag" x="528" y="${119.5 + i * 23}" text-anchor="end">NUEVA</text>` : `<text class="ok" x="528" y="${120 + i * 23}" text-anchor="end">✓</text>`}</g>`).join("");
   const dots = Array.from({ length: DOTS }, (_, i) =>
-    `<circle class="sc-pop" cx="${272 + (i % 14) * 19.5}" cy="${246 + Math.floor(i / 14) * 17}" r="4"/>`).join("");
-  const marks = [[CVE_T, "CVE publicado", "bad", "cve"], [PUB_T, "Regla de Cloudflare", "good", "pub"], [PATCH_T, "Tu parche", "", "patch"]];
+    `<circle class="sc-pop" cx="${272 + (i % 14) * 19.5}" cy="${262 + Math.floor(i / 14) * 15}" r="4"/>`).join("");
+  const marks = [[RULE_T, "Reglas CF", "good", "rule"], [LEAK_T, "Filtración", "bad", "leak"], [DISC_T, "Divulgación", "bad", "disc"], [PATCH_T, "Tu parche", "", "patch"]];
 
   const svg = sceneFrame({
     edge: [240, 44, 320, 282],
     outer: `
-      ${wireLine("usr", PATH.usr)}${wireLine("atk", PATH.bot)}${wireLine("out", PATH.out)}
+      ${wireLine("usr", PATH.usr)}${wireLine("atk", PATH.bot)}${wireLine("out", PATH.out)}${wireLine("oback", PATH.oback)}${wireLine("back", PATH.exfil)}
       <g class="sc-toast"><rect x="16" y="32" width="218" height="44" rx="8"/>
-        <text class="t1" x="28" y="50">🚨 CVE-2026-31337 publicado</text>
-        <text class="t2" x="28" y="66">RCE · CVSS 9.8 · exploit público</text></g>
+        <text class="t1" x="28" y="50"></text>
+        <text class="t2" x="28" y="66"></text></g>
       ${iconBox({ id: "mr-usr", x: 70, y: 120, icon: "🧑", label: "Usuarios", sub: "tráfico normal", cls: "good" })}
-      <g class="sc-bot sc-dim">${iconBox({ id: "mr-bot", x: 70, y: 262, icon: "☠️", label: "Botnet", sub: "escaneo masivo", cls: "bad" })}</g>
-      ${originBox(648, 120, 180, "sin parche aún")}
+      <g class="sc-bot sc-dim">${iconBox({ id: "mr-bot", x: 70, y: 262, icon: "☠️", label: "Atacantes", sub: "exploit php2shell", cls: "bad" })}</g>
+      ${originBox(648, 110, 190, "PHP 8.x · WordPress")}
       <line class="sc-tl-track" x1="40" y1="352" x2="740" y2="352"/>
       <line class="sc-tl-done" x1="40" y1="352" x2="40" y2="352"/>
       ${marks.map(([t, label, cls, id]) => `<g class="sc-tl-mark ${cls}" data-m="${id}"><circle cx="${tlX(t)}" cy="352" r="5"/><text x="${tlX(t)}" y="342" text-anchor="middle">${label}</text></g>`).join("")}
       <circle class="sc-tl-head" cx="40" cy="352" r="4"/>
-      <text class="sc-tl-comp" x="740" y="366" text-anchor="end">⏱ tiempo comprimido</text>`,
+      <text class="sc-tl-comp" x="740" y="366" text-anchor="end">⏱ tiempo comprimido · caso real oct 2026</text>`,
     inner: `
-      <g class="sc-card sc-mr"><rect x="254" y="84" width="292" height="122" rx="8"/>
-        <text class="rl-rule-t" x="266" y="101">🛡 Cloudflare Managed Ruleset</text>
-        <text class="sc-pill-t on" x="538" y="100" text-anchor="end">AUTO-UPDATE</text>
+      <g class="sc-card sc-mr"><rect x="254" y="84" width="292" height="96" rx="8"/>
+        <text class="rl-rule-t" x="266" y="100">🛡 Cloudflare Managed Ruleset</text>
+        <text class="sc-pill-t on sc-mr-pill" x="538" y="99" text-anchor="end">AUTO-UPDATE</text>
         ${rows}
-        <g class="sc-row new"><rect x="262" y="180" width="276" height="20" rx="4"/>
-          <text x="270" y="194">${NEW[0]} · ${NEW[1]}</text>
-          <text class="sc-newtag" x="528" y="194" text-anchor="end">NUEVA</text></g>
       </g>
-      <text class="sc-label" x="262" y="230">DESPLIEGUE GLOBAL</text>
-      <text class="sc-dep" x="538" y="230" text-anchor="end"></text>
+      <g class="sc-card sc-rf"><rect x="254" y="188" width="292" height="44" rx="8"/>
+        <text class="rl-rule-t" x="266" y="204">🔁 Response Firewall</text>
+        <text class="sc-pill-t on" x="538" y="203" text-anchor="end">FULL TRANSACTION</text>
+        <text class="sc-mono" x="266" y="222">analiza la respuesta · bloquea fugas de memoria</text>
+      </g>
+      <text class="sc-label" x="262" y="250">DESPLIEGUE GLOBAL</text>
+      <text class="sc-dep" x="538" y="250" text-anchor="end"></text>
       ${dots}
-      <text class="sc-hint" x="400" y="310" text-anchor="middle">Cada punto representa un grupo de PoPs de la red de Cloudflare</text>`
+      <text class="sc-hint sc-mr-hint" x="400" y="306" text-anchor="middle"></text>`
   });
   const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Managed Ruleset</span>
     <button class="btn btn-sm" data-mr="on">Activado</button>
     <button class="btn btn-sm" data-mr="off">Desactivado</button></div>`;
   const stats = `<div class="rl-stats">
     <div class="rl-stat sent"><b data-out="sent">0</b><span>Exploits enviados</span></div>
-    <div class="rl-stat good"><b data-out="edge">0</b><span>Bloqueados en el edge</span></div>
-    <div class="rl-stat block"><b data-out="leak">0</b><span>Llegaron al origen</span></div>
+    <div class="rl-stat good"><b data-out="req">0</b><span>Bloqueados · petición</span></div>
+    <div class="rl-stat pass"><b data-out="resp">0</b><span>Bloqueados · respuesta</span></div>
+    <div class="rl-stat block"><b data-out="leak">0</b><span>Datos filtrados</span></div>
   </div>`;
 
   const kit = sceneKit(root, { svg, controls, stats });
-  const toast = kit.q(".sc-toast"), bot = kit.q(".sc-bot"), newRow = kit.q(".sc-row.new"), card = kit.q(".sc-mr");
-  const dotEls = kit.qa(".sc-pop"), dep = kit.q(".sc-dep"), head = kit.q(".sc-tl-head"), done = kit.q(".sc-tl-done");
+  const toast = kit.q(".sc-toast"), toastT1 = kit.q(".sc-toast .t1"), toastT2 = kit.q(".sc-toast .t2");
+  const bot = kit.q(".sc-bot"), newRows = kit.qa(".sc-row.new"), card = kit.q(".sc-mr"), rfCard = kit.q(".sc-rf"), mrPill = kit.q(".sc-mr-pill");
+  const dotEls = kit.qa(".sc-pop"), dep = kit.q(".sc-dep"), hint = kit.q(".sc-mr-hint"), head = kit.q(".sc-tl-head"), done = kit.q(".sc-tl-done");
   const markEls = Object.fromEntries(kit.qa(".sc-tl-mark").map(m => [m.dataset.m, m]));
   const originS = kit.q('[data-o="s"]'), originN = kit.q('[data-o="n"]'), originG = kit.q(".sc-origin"), originSub = kit.q(".sc-origin .d-cust-s");
   let S;
   const randIp = () => `${[45, 89, 103, 185, 193][Math.floor(Math.random() * 5)]}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}.${Math.floor(Math.random() * 255)}`;
+  const setToast = (cls, a, b) => {
+    toast.setAttribute("class", `sc-toast on ${cls}`);
+    toastT1.textContent = a;
+    toastT2.textContent = b;
+  };
+  const count = (k, n = 1) => { S[k] += n; kit.out(k, S[k]); };
 
   const cycle = t => {
     S.packets.forEach(p => p.g.remove());
     Object.assign(S, {
-      c0: t, packets: [], cve: false, pub: false, live: false, patched: false, lastLeak: -9, lit: 0,
-      nextUsr: 0.2, nextBot: CVE_T + 1, order: shuffle([...Array(DOTS).keys()])
+      c0: t, packets: [], ruled: false, live: false, leaked: false, disclosed: false, mutated: false, patched: false,
+      lastLeak: -9, lit: 0, nextUsr: 0.2, nextBot: LEAK_T + 0.3, order: shuffle([...Array(DOTS).keys()])
     });
-    toast.classList.remove("on");
+    toast.setAttribute("class", "sc-toast");
     bot.classList.add("sc-dim");
-    newRow.classList.remove("on");
+    newRows.forEach(r => r.classList.remove("on"));
+    rfCard.classList.add("sc-dim");
     dotEls.forEach(d => d.classList.remove("on"));
     Object.values(markEls).forEach(m => m.classList.remove("on"));
     card.classList.toggle("off", !cfg.enabled);
-    kit.q(".sc-mr .sc-pill-t").textContent = cfg.enabled ? "AUTO-UPDATE" : "DESACTIVADO";
-    kit.q(".sc-mr .sc-pill-t").setAttribute("class", `sc-pill-t ${cfg.enabled ? "on" : "off"}`);
-    originSub.textContent = "sin parche aún";
+    rfCard.classList.toggle("off", !cfg.enabled);
+    mrPill.textContent = cfg.enabled ? "AUTO-UPDATE" : "DESACTIVADO";
+    mrPill.setAttribute("class", `sc-pill-t sc-mr-pill ${cfg.enabled ? "on" : "off"}`);
+    markEls.rule.style.opacity = cfg.enabled ? "" : "0.3";
+    originSub.textContent = "PHP 8.x · WordPress";
+    hint.textContent = "PHP corre en ~70% de los sitios web (WordPress, Magento…)";
     kit.segment("data-mr", cfg.enabled ? "on" : "off");
   };
 
   const reset = () => {
-    S = { t: 0, packets: [], n: 0, sent: 0, edge: 0, leak: 0, origin: 0 };
-    ["sent", "edge", "leak"].forEach(k => kit.out(k, 0));
+    S = { t: 0, packets: [], n: 0, sent: 0, req: 0, resp: 0, leak: 0, origin: 0 };
+    ["sent", "req", "resp", "leak"].forEach(k => kit.out(k, 0));
     originN.textContent = "0";
     kit.log("Monitoreando el Managed Ruleset…", "hint");
     cycle(0);
@@ -1284,98 +1305,139 @@ function mountManagedScene(root) {
 
   const spawn = (kind, t) => {
     const n = ++S.n;
-    const g = kind === "usr" ? kit.pill("good", "GET", 40) : kit.pill("exploit", `RCE #${n}`, 58);
-    S.packets.push({ g, kind, n, ip: kind === "bot" ? randIp() : "", leg: "in", path: PATH[kind], t0: t, dur: kind === "usr" ? 1.2 : 0.95 });
-    if (kind === "bot") { S.sent++; kit.out("sent", S.sent); }
+    const p = { kind, n, ip: kind === "usr" ? "" : randIp(), leg: "in", path: PATH[kind === "usr" ? "usr" : "bot"], t0: t, dur: kind === "usr" ? 1.2 : 0.95 };
+    p.g = kind === "usr" ? kit.pill("good", "GET", 40) : kind === "mut" ? kit.pill("exploit", `🧬 #${n}`, 52) : kit.pill("exploit", `php2shell #${n}`, 84);
+    S.packets.push(p);
+    if (kind !== "usr") count("sent");
   };
 
   const arrive = (p, t, frac) => {
     const ct = t - S.c0;
     if (p.leg === "in") {
-      if (p.kind === "bot" && S.pub && Math.random() < frac) {
+      // La firma de la petición atrapa el payload original; la variante mutada la evade
+      if (p.kind === "x" && S.ruled && Math.random() < frac) {
         kit.impact(PATH.bot[1]);
         kit.relabel(p.g, "bad", "403", 44);
-        p.leg = "back";
-        p.path = PATH.bot.slice().reverse();
-        p.dur = 0.85;
-        S.edge++;
-        kit.out("edge", S.edge);
-        kit.logReq(p.ip, `POST /upload #${p.n}`, `403 · regla ${NEW[0]}`, "ok");
-      } else {
-        p.leg = "out";
-        p.path = PATH.out;
-        p.dur = 0.7;
-        if (p.kind === "bot") kit.logReq(p.ip, `POST /upload #${p.n}`, S.patched ? "200 · origen ya parchado" : "⚠ llegó al origen", S.patched ? "warn" : "bad");
+        Object.assign(p, { leg: "back", path: PATH.bot.slice().reverse(), dur: 0.85, t0: t });
+        count("req");
+        kit.logReq(p.ip, `POST /index.php #${p.n}`, `403 · regla ${RULES[1][0]}`, "ok");
+        return;
       }
-      p.t0 = t;
+      Object.assign(p, { leg: "out", path: PATH.out, dur: 0.7, t0: t });
+      if (p.kind === "mut") kit.logReq(p.ip, `POST /index.php #${p.n}`, "⚠ variante evadió la firma", "warn");
+      else if (p.kind === "x") kit.logReq(p.ip, `POST /index.php #${p.n}`, "⚠ llegó al origen", "bad");
       return;
     }
     if (p.leg === "out") {
       S.origin++;
       originN.textContent = S.origin;
-      if (p.kind === "bot") {
-        S.leak++;
-        kit.out("leak", S.leak);
-        if (!S.patched) { S.lastLeak = ct; kit.flash(originG, "alarm", 500); }
+      if (p.kind !== "usr" && !S.patched) {
+        // El origen vulnerable responde filtrando memoria
+        S.lastLeak = ct;
+        kit.flash(originG, "alarm", 500);
+        kit.relabel(p.g, "warn", "💾 fuga", 52);
+        Object.assign(p, { leg: "oback", path: PATH.oback, dur: 0.7, t0: t });
+        return;
       }
+      if (p.kind !== "usr") kit.logReq(p.ip, `POST /index.php #${p.n}`, "500 · PHP parchado, sin fuga", "ok");
+      kit.drop(p);
+      return;
+    }
+    if (p.leg === "oback") {
+      // Full transaction detection: se revisa la respuesta del origen antes de entregarla
+      if (S.live) {
+        kit.impact(PATH.oback[1]);
+        kit.flash(rfCard, "hl", 700);
+        count("resp");
+        kit.logReq(p.ip, `respuesta #${p.n}`, "bloqueada · Response Firewall", "ok");
+        kit.drop(p);
+      } else {
+        kit.relabel(p.g, "bad", "💾 datos", 58);
+        Object.assign(p, { leg: "exfil", path: PATH.exfil, dur: 0.85, t0: t });
+      }
+      return;
+    }
+    if (p.leg === "exfil") {
+      count("leak");
+      kit.logReq(p.ip, `respuesta #${p.n}`, "⚠ datos filtrados al atacante", "bad");
     }
     kit.drop(p);
   };
 
   const phase = ct => {
-    if (ct < CVE_T) return ["calm", "🌐 Un día normal",
-      "El tráfico legítimo llega al origen. El Managed Ruleset ya protege contra ataques conocidos (SQLi, XSS, path traversal)."];
-    if (!cfg.enabled) return ct < PATCH_T
-      ? ["off", "⚠ Managed Ruleset desactivado",
-        "Sin la regla gestionada, cada exploit llega a tu origen hasta que tu equipo aplique el parche: días o semanas de exposición."]
-      : ["offpatch", "🔧 Por fin llega el parche", "Todo el tiempo entre el CVE y tu parche, el origen estuvo expuesto a los exploits."];
-    if (!S.pub) return ["cve", "🚨 Se publica un CVE crítico",
-      "Aparece un exploit público y las botnets empiezan a escanear Internet en minutos. Tu servidor aún no tiene parche: los exploits morados llegan al origen."];
-    if (!S.live) return ["deploy", "🛡 Cloudflare publica la regla y la despliega",
-      "El equipo de seguridad de Cloudflare escribe la firma del exploit y la empuja a toda la red: mira cómo se encienden los PoPs. Mientras termina, algunos exploits todavía se cuelan."];
-    if (!S.patched) return ["vpatch", "✅ Virtual patching: protegido sin haber parchado",
-      "Los exploits rebotan con 403 en el edge. Tu servidor sigue vulnerable, pero ya está protegido, y tú no moviste un dedo."];
-    return ["patched", "🔧 Tu equipo parcha con calma",
-      "Ganaste tiempo: aplicas el parche sin prisa porque Cloudflare bloqueaba los exploits desde antes."];
+    if (ct < RULE_T) return ["calm", "🌐 Un día normal",
+      "El tráfico legítimo llega a tu sitio PHP. El Managed Ruleset ya protege contra ataques conocidos como SQLi."];
+    if (!cfg.enabled) {
+      if (ct < LEAK_T) return ["off0", "⚠ Managed Ruleset desactivado", "No recibirás las reglas de php2shell que Cloudflare está a punto de publicar."];
+      if (ct < PATCH_T) return ["off1", "⚠ Sin Managed Ruleset: el exploit entra y filtra datos",
+        "Cada intento llega a tu origen, PHP filtra memoria en la respuesta y los datos regresan al atacante. Así sigues hasta que tu equipo actualice PHP."];
+      return ["off2", "🔧 Por fin actualizas PHP", "Todo el tiempo entre la filtración y tu parche, tu sitio estuvo expuesto."];
+    }
+    if (ct < LEAK_T) return ["rule", "🛡 Cloudflare despliega las reglas antes del anuncio",
+      "En coordinación con PHP Foundation, Wiz y OpenAI, Cloudflare publica las reglas <b>PHP RCE</b> en el Managed Ruleset unas <b>9 horas antes</b> de la divulgación pública. Mira cómo se encienden los PoPs."];
+    if (ct < DISC_T) return ["leak", "☠️ La vulnerabilidad se filtra y empiezan los ataques",
+      "El exploit circula antes del anuncio oficial. Las botnets atacan, pero tus sitios ya tienen la regla: cada intento rebota con <b>403</b> en el edge."];
+    if (ct < MUT_T) return ["disc", "📢 Divulgación pública: CVE-2026-109618 y 109619",
+      "php2shell afecta a PHP 5.4 o posterior y permite RCE, denegación de servicio y exposición de datos. Tu servidor sigue sin parche, pero ya estaba protegido desde antes."];
+    if (ct < PATCH_T) return ["mut", "🧬 Los atacantes mutan el payload",
+      "Una variante 🧬 evade la firma de la petición y llega al origen, que filtra memoria en su respuesta. La <b>detección de transacción completa</b> revisa la respuesta y la bloquea antes de que llegue al atacante."];
+    return ["patch", "🔧 Tu equipo actualiza PHP",
+      "Con el parche el origen ya no filtra datos. Cloudflare te dio el margen para parchar con calma. Aun así, mantén el WAF activo como defensa en profundidad."];
   };
 
   const tick = t => {
     S.t = t;
     let ct = t - S.c0;
     if (ct >= T) { cycle(t); ct = 0; }
-    if (!S.cve && ct >= CVE_T) {
-      S.cve = true;
-      toast.classList.add("on");
+    if (cfg.enabled && !S.ruled && ct >= RULE_T) {
+      S.ruled = true;
+      newRows.forEach(r => r.classList.add("on"));
+      rfCard.classList.remove("sc-dim");
+      markEls.rule.classList.add("on");
+      setToast("info", "🤝 Divulgación coordinada", "reglas listas ~9 h antes del anuncio");
+      kit.log(`🛡 Cloudflare publica ${RULES[1][0]} y ${RULES[2][0]} · PHP RCE (php2shell)`, "evt");
+    }
+    if (!S.leaked && ct >= LEAK_T) {
+      S.leaked = true;
       bot.classList.remove("sc-dim");
-      markEls.cve.classList.add("on");
-      kit.log("🚨 CVE-2026-31337 publicado · RCE crítico en un framework popular", "evt");
+      markEls.leak.classList.add("on");
+      setToast("", "☠️ El exploit se filtró", "ataques antes del anuncio oficial");
+      kit.log("☠️ El exploit de php2shell se filtra antes de la fecha oficial", "evt");
     }
-    if (cfg.enabled && !S.pub && ct >= PUB_T) {
-      S.pub = true;
-      newRow.classList.add("on");
-      markEls.pub.classList.add("on");
-      kit.log(`🛡 Cloudflare publica la regla ${NEW[0]} en el Managed Ruleset`, "evt");
+    if (!S.disclosed && ct >= DISC_T) {
+      S.disclosed = true;
+      markEls.disc.classList.add("on");
+      setToast("", "📢 CVE-2026-109618 / 109619", "php2shell · PHP 5.4+ · RCE");
+      kit.log("📢 Divulgación pública de CVE-2026-109618 y CVE-2026-109619", "evt");
     }
-    const frac = S.pub ? Math.min(1, (ct - PUB_T) / DEP) : 0;
+    if (!S.mutated && ct >= MUT_T) {
+      S.mutated = true;
+      setToast("", "🧬 Payload mutado", "intentan evadir la firma");
+      kit.log("🧬 Los atacantes mutan el payload para evadir la regla", "evt");
+    }
+    const frac = S.ruled ? Math.min(1, (ct - RULE_T) / DEP) : 0;
     while (S.lit < Math.floor(frac * DOTS)) dotEls[S.order[S.lit++]].classList.add("on");
-    if (S.pub && frac >= 1 && !S.live) {
+    if (S.ruled && frac >= 1 && !S.live) {
       S.live = true;
-      kit.log(`✓ Regla ${NEW[0]} activa en toda la red · sin cambios de tu lado`, "evt");
+      kit.log("✓ Reglas activas en toda la red, en todos los planes (incluido Free)", "evt");
     }
-    dep.textContent = !cfg.enabled ? "Ruleset desactivado" : !S.pub ? "sin reglas pendientes" : S.live ? "✓ activa en toda la red" : `desplegando… ${Math.round(frac * 100)}%`;
+    dep.textContent = !cfg.enabled ? "Ruleset desactivado" : !S.ruled ? "sin reglas pendientes" : S.live ? "✓ activa en toda la red" : `desplegando… ${Math.round(frac * 100)}%`;
     if (!S.patched && ct >= PATCH_T) {
       S.patched = true;
       markEls.patch.classList.add("on");
-      originSub.textContent = "parchado";
-      kit.log("🔧 Tu equipo aplica el parche en el origen", "evt");
+      originSub.textContent = "PHP actualizado";
+      kit.log("🔧 Tu equipo actualiza PHP en el origen", "evt");
     }
 
     if (ct >= S.nextUsr) { spawn("usr", t); S.nextUsr = ct + 0.9 + Math.random() * 0.6; }
-    if (S.cve && ct < ATK_END && ct >= S.nextBot) { spawn("bot", t); S.nextBot = ct + 0.45 + Math.random() * 0.35; }
+    if (S.leaked && ct < ATK_END && ct >= S.nextBot) {
+      spawn(S.mutated && Math.random() < 0.45 ? "mut" : "x", t);
+      S.nextBot = ct + 0.55 + Math.random() * 0.4;
+    }
     S.packets = kit.move(S.packets, t, (p, tt) => arrive(p, tt, frac));
 
     const leaking = ct - S.lastLeak < 1.2;
-    originS.textContent = S.patched ? "✓ Parchado" : leaking ? "⚠ Exploit llegó al origen" : S.live ? "🛡 Protegido (virtual patch)" : "✓ Operando";
+    originS.textContent = S.patched ? "✓ PHP parchado" : leaking ? "⚠ Filtrando memoria" : S.live ? "🛡 Protegido sin parche" : "✓ Operando";
     originS.setAttribute("class", `sc-origin-s ${leaking && !S.patched ? "bad" : ""}`);
     head.setAttribute("cx", tlX(ct));
     done.setAttribute("x2", tlX(ct));
