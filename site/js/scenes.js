@@ -1196,7 +1196,7 @@ function mountResponseScene(root) {
 // Basado en https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 function mountManagedScene(root) {
   // RULE_T es solo la posición inicial del marcador: la regla se publica cuando Cloudflare detecta los primeros exploits (ZERO_PASS)
-  const T = 42, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, ZERO_MIN = 4.5, RULE_T = 11, DEP = 7, ZERO_PASS = 5, DISC_T = 21, MUT_T = 23, PATCH_T = 34, ATK_END = 40;
+  const T = 46, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, ZERO_MIN = 8, RULE_T = 14.5, DEP = 7, ZERO_PASS = 9, DISC_T = 25, MUT_T = 27, PATCH_T = 38, ATK_END = 44;
   const PATH = {
     usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]],
     out: [[560, 200], [646, 200]], oback: [[646, 226], [560, 226]], exfil: [[240, 280], [98, 284]]
