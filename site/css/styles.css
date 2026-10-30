@@ -1186,3 +1186,4 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .cm-base { fill: #F6821F; }
 .cm-base-t { fill: #FFFFFF; font: 700 15px var(--font-display); }
 .cm-base-s { fill: #FFF7ED; font: 600 10px var(--font-body); }
+.soon-pill.live-pill { color: var(--green); background: rgba(53, 208, 127, 0.12); border-color: rgba(53, 208, 127, 0.35); }

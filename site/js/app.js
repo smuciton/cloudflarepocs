@@ -257,12 +257,7 @@ function viewPortafolio(focusId) {
       ${buildCloudMap()}
       <div class="step-caption" id="cm-caption"><strong>Explora el portafolio</strong><p>Pasa el cursor sobre un producto para ver de qué se trata. Los de <b>App Security</b> abren su demo interactiva; los demás muestran lo que viene.</p></div>
     </div>
-    <div class="section-title" style="--accent:var(--orange)">Application Security · detalle</div>
-    <div class="card" style="--accent:var(--orange);margin-bottom:26px">
-      <div class="card-kicker">Mapa de Application Security</div>
-      ${buildPfDiagram()}
-      <div class="step-caption" id="pf-caption"><strong>Explora el mapa</strong><p>Cada capa del edge juega un rol: pasa el cursor sobre un producto para ver su pitch, o haz clic para abrir su página interactiva.</p></div>
-    </div>
+    <div class="section-title" style="--accent:var(--orange)">Application Security <span class="soon-pill live-pill" style="margin-left:8px">disponible</span></div>
     ${PRODUCTS.map(p => `
       <div class="card product-card framed ${focusId === p.id ? "open" : ""}" id="p-${p.id}" style="--accent:${p.accent};margin-bottom:14px">
         <div class="product-head" data-toggle="${p.id}">
@@ -615,58 +610,6 @@ function buildClientInto(svg, spec) {
   }
 }
 
-// ── Mapa del portafolio (vista Portafolio) ───────────────────────────────────
-const PF_NAME = { waf: "WAF", bots: "Bot Mgmt", api: "API Shield", ddos: "DDoS", ratelimit: "Rate Limiting", pageshield: "Page Shield", ssl: "SSL/TLS" };
-const PF_ICONS = { ddos: "🌊", ratelimit: "⏱️", waf: "🛡️", bots: "🤖", api: "🔌", pageshield: "👁️", ssl: "🔒" };
-const PF_SUB = { ddos: "defensa volumétrica", ratelimit: "control de abuso", waf: "exploits y ataques", bots: "bots y fraude", api: "APIs seguras", pageshield: "lado del cliente", ssl: "cifrado gestionado" };
-
-function pfTile(id, x, y) {
-  const p = PRODUCTS.find(p => p.id === id);
-  return `<g class="pf-tile" data-pid="${id}" transform="translate(${x} ${y})" style="--tacc:${p.accent}">
-    <rect width="125" height="56" rx="8"/>
-    <rect width="4" height="56" rx="2" fill="${p.accent}"/>
-    <text class="pf-ic" x="14" y="34">${PF_ICONS[id]}</text>
-    <text class="pf-name" x="38" y="27">${PF_NAME[id]}</text>
-    <text class="pf-sub" x="38" y="43">${PF_SUB[id]}</text>
-  </g>`;
-}
-
-function buildPfDiagram() {
-  const rows = [
-    { label: "PROTEGE TU INFRAESTRUCTURA", ids: ["ddos", "ratelimit"] },
-    { label: "PROTEGE TUS APLICACIONES", ids: ["waf", "bots", "api"] },
-    { label: "PROTEGE A TUS USUARIOS", ids: ["pageshield", "ssl"] }
-  ];
-  const s = [`<svg class="diagram" viewBox="0 0 780 430" xmlns="http://www.w3.org/2000/svg">`];
-  s.push(`<rect class="d-bg" x="0" y="0" width="780" height="430" rx="14"/>`);
-  s.push(`<path class="d-edge good on" d="M 101 220 L 168 220"/>`);
-  s.push(`<text class="d-elabel good on" x="134" y="208" text-anchor="middle">tráfico</text>`);
-  s.push(`<path class="d-edge good on" d="M 612 220 L 640 220"/>`);
-  s.push(`<text class="d-elabel good on" x="626" y="208" text-anchor="middle">limpio</text>`);
-  s.push(`<rect class="d-net" x="170" y="45" width="440" height="345" rx="14"/>`);
-  s.push(cfCloud(196, 58, 0.85));
-  s.push(`<text class="d-nettitle" x="420" y="74" text-anchor="middle">Application Security · detección integrada por ML</text>`);
-  let y = 100;
-  for (const r of rows) {
-    s.push(`<text class="d-layer" x="390" y="${y - 6}" text-anchor="middle">${r.label}</text>`);
-    const cols = r.ids.length === 3 ? [190, 327, 464] : [258, 395];
-    r.ids.forEach((id, i) => s.push(pfTile(id, cols[i], y)));
-    y += 84;
-  }
-  s.push(`<g class="pf-sc"><rect x="190" y="${y - 8}" width="399" height="42" rx="8"/>
-    <text x="390" y="${y + 18}" text-anchor="middle">🛡️ Cloudflare Security Center · Security Events & Analytics</text></g>`);
-  s.push(iconBox({ id: "pf-client", x: 75, y: 220, icon: "🌐", label: "Clientes / Internet", cls: "good" }));
-  s.push(`<g class="d-cust"><rect x="645" y="150" width="115" height="140" rx="10"/>
-    <text class="d-cust-t" x="702" y="172" text-anchor="middle">Tu origen /</text>
-    <text class="d-cust-t" x="702" y="186" text-anchor="middle">apps</text>
-    <rect class="d-srv b" x="662" y="200" width="80" height="14" rx="3"/>
-    <rect class="d-srv b" x="662" y="220" width="80" height="14" rx="3"/>
-    <rect class="d-srv b" x="662" y="240" width="80" height="14" rx="3"/>
-    <text class="d-cust-s" x="702" y="272" text-anchor="middle">☁️ público · DC</text></g>`);
-  s.push(`</svg>`);
-  return s.join("");
-}
-
 function viewSoonProducto(id) {
   const [r] = route();
   const pf = SOON_PORTFOLIOS.find(s => s.slug === r);
@@ -927,15 +870,6 @@ function render() {
 function wire(r, arg) {
   if (r === "portafolio") {
     $$(".product-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
-    $$(".pf-tile").forEach(t => {
-      t.addEventListener("click", () => go(`${APPSEC}/${t.dataset.pid}`));
-      t.addEventListener("mouseenter", () => {
-        const p = PRODUCTS.find(x => x.id === t.dataset.pid);
-        const cap = $("#pf-caption");
-        if (cap) cap.innerHTML = `<strong style="color:${p.accent}">${p.num} ${p.name}</strong><p>${p.pitch}</p>`;
-      });
-    });
-    $$("#view .diagram").forEach(spawnPackets);
     $$(".cm-item").forEach(el => {
       const route = el.dataset.cm;
       if (route) el.addEventListener("click", () => go(route));
