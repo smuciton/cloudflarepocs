@@ -11,9 +11,32 @@ const SCENES = {
 };
 
 function mountScene(name, root, title = "") {
-  const scene = SCENES[name]?.(root);
-  if (scene) addSceneChrome(root, scene, title);
-  return scene;
+  if (!SCENES[name]) return null;
+  let inner, obs;
+  const boot = () => {
+    inner = SCENES[name](root);
+    addSceneChrome(root, inner, title);
+    // Al cerrar la vista ampliada (botón rojo, Esc o "Cerrar"), la escena vuelve a su estado inicial
+    let wasFull = false;
+    obs = new MutationObserver(() => {
+      const full = root.classList.contains("scene-full");
+      if (wasFull && !full) setTimeout(remount);
+      wasFull = full;
+    });
+    obs.observe(root, { attributes: true, attributeFilter: ["class"] });
+  };
+  const remount = () => {
+    inner.destroy();
+    obs.disconnect();
+    if (!root.isConnected) return;
+    const fresh = root.cloneNode(false);
+    fresh.classList.remove("scene-full");
+    root.replaceWith(fresh);
+    root = fresh;
+    boot();
+  };
+  boot();
+  return { destroy() { inner.destroy(); obs.disconnect(); } };
 }
 
 // Pantalla de inicio (la escena arranca en pausa) + barra de ventana tipo Mac para el modo ampliado
@@ -633,14 +656,21 @@ function mountCustomRulesScene(root) {
     { lane: "bot", path: "/admin/login", cc: "KP", score: 1 },
     { lane: "bot", path: "/productos", cc: "US", score: 8 }
   ];
+  // Cada condición: campo, operador(es) intercambiables y valor. Los operadores con más de una opción se cambian con un clic.
   const CONDS = [
-    { expr: 'http.request.uri.path wildcard "/admin*"', test: r => r.path.startsWith("/admin"), show: r => r.path,
-      ask: r => `¿El path <b>${esc(r.path)}</b> empieza con <b>/admin</b>?` },
-    { expr: 'ip.src.country ne "MX"', test: r => r.cc !== "MX", show: r => r.cc,
-      ask: r => `<i>ne</i> = "distinto de": ¿el país <b>${r.cc}</b> es distinto de <b>MX</b>?` },
-    { expr: "cf.bot_management.score lt 30", test: r => r.score < 30, show: r => `score ${r.score}`,
-      ask: r => `<i>lt</i> = "menor que": ¿el bot score <b>${r.score}</b> es menor que <b>30</b>?` }
+    { field: "http.request.uri.path", val: '"/admin*"',
+      ops: { wildcard: { word: "coincide con", test: r => r.path.startsWith("/admin") } },
+      ask: (r, op) => `¿El path <b>${esc(r.path)}</b> ${CONDS[0].ops[op].word} <b>/admin*</b>?` },
+    { field: "ip.src.country", val: '"MX"',
+      ops: { ne: { word: "distinto de", test: r => r.cc !== "MX" }, eq: { word: "igual a", test: r => r.cc === "MX" } },
+      ask: (r, op) => `<i>${op}</i> = "${CONDS[1].ops[op].word}": ¿el país <b>${r.cc}</b> es ${CONDS[1].ops[op].word} <b>MX</b>?` },
+    { field: "cf.bot_management.score", val: "30",
+      ops: { lt: { word: "menor que", test: r => r.score < 30 }, gt: { word: "mayor que", test: r => r.score > 30 } },
+      ask: (r, op) => `<i>${op}</i> = "${CONDS[2].ops[op].word}": ¿el bot score <b>${r.score}</b> es ${CONDS[2].ops[op].word} <b>30</b>?` }
   ];
+  const exprOf = i => `${CONDS[i].field} ${cfg.op[i]} ${CONDS[i].val}`;
+  const testOf = (i, r) => CONDS[i].ops[cfg.op[i]].test(r);
+  const askOf = (i, r) => CONDS[i].ask(r, cfg.op[i]);
   const ACTIONS = {
     block: { label: "Block", pill: "403", cls: "bad", back: true, res: "403 block",
       why: "Cloudflare responde <b>403</b> en el edge: la petición nunca toca tu origen." },
@@ -652,7 +682,8 @@ function mountCustomRulesScene(root) {
       why: "Con <b>Skip</b> la petición se salta las reglas siguientes (útil para excepciones de confianza) y sigue al origen." }
   };
   const STEP = 0.42;
-  const cfg = { action: "block", enabled: [true, true, true] };
+  // Arranca con la regla vacía (todo apagado) para ir encendiendo condiciones durante la demo
+  const cfg = { action: "block", enabled: [false, false, false], op: ["wildcard", "ne", "lt"] };
   // Cada cápsula lleva el ícono de su origen y su número, así se distingue de quién es cada respuesta
   const tag = r => `${LANES[r.lane].icon} #${r.n}`;
   const pillW = s => Math.round(18 + s.replace(/[^\x20-\x7E]/g, "").length * 5.4 + (/[^\x20-\x7E]/.test(s) ? 14 : 0));
@@ -660,7 +691,7 @@ function mountCustomRulesScene(root) {
   const rows = CONDS.map((c, i) => `
     <g class="sc-cond" data-cond="${i}">
       <rect x="262" y="${108 + i * 26}" width="276" height="22" rx="5"/>
-      <text class="sc-cond-x" x="270" y="${123 + i * 26}">${i ? "and " : ""}${esc(c.expr)}</text>
+      <text class="sc-cond-x" x="270" y="${123 + i * 26}">${i ? "and " : ""}${c.field} <tspan class="sc-op ${Object.keys(c.ops).length > 1 ? "tog" : ""}" ${Object.keys(c.ops).length > 1 ? `data-op="${i}"` : ""}></tspan> ${esc(c.val)}</text>
       <circle class="sc-badge" cx="526" cy="${119 + i * 26}" r="8"/>
       <text class="sc-badge-t" x="526" y="${122.5 + i * 26}" text-anchor="middle">•</text>
     </g>`).join("");
@@ -681,7 +712,7 @@ function mountCustomRulesScene(root) {
       </g>
       <g class="rl-status ok sc-verdict"><rect x="270" y="262" width="260" height="30" rx="15"/><text x="400" y="281" text-anchor="middle"></text></g>
       <text class="sc-rulenote" x="400" y="308" text-anchor="middle">Acción solo si TODAS se cumplen · sin match = pasa</text>
-      <text class="sc-hint" x="400" y="324" text-anchor="middle">👆 Haz clic en una condición para activarla / desactivarla</text>`
+      <text class="sc-hint" x="400" y="324" text-anchor="middle">👆 Condición: encender/apagar · operador naranja: cambiarlo</text>`
   });
   const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Acción al hacer match</span>
     ${Object.entries(ACTIONS).map(([k, a]) => `<button class="btn btn-sm" data-act="${k}">${a.label}</button>`).join("")}</div>`;
@@ -704,7 +735,10 @@ function mountCustomRulesScene(root) {
       ? `then → ${ACTIONS[cfg.action].label.toLowerCase()}`
       : "regla inactiva → sin acción";
     kit.q(".sc-card").classList.toggle("inactive", !ruleActive());
-    condEls.forEach((g, i) => g.classList.toggle("off", !cfg.enabled[i]));
+    condEls.forEach((g, i) => {
+      g.classList.toggle("off", !cfg.enabled[i]);
+      g.querySelector(".sc-op").textContent = cfg.op[i];
+    });
   };
   const setBadge = (i, v) => {
     const g = condEls[i];
@@ -802,13 +836,13 @@ function mountCustomRulesScene(root) {
       if (!cfg.enabled[i]) {
         setBadge(i, "skip");
         kit.caption(`ev${r.n}-${i}`, `🔎 Petición #${r.n} · condición ${i + 1} desactivada`,
-          `<code>${esc(CONDS[i].expr)}</code> está apagada, así que no se evalúa.`);
+          `<code>${esc(exprOf(i))}</code> está apagada, así que no se evalúa.`);
         continue;
       }
-      const ok = CONDS[i].test(r);
+      const ok = testOf(i, r);
       setBadge(i, ok);
       kit.caption(`ev${r.n}-${i}`, `🔎 Evaluando petición #${r.n} · condición ${i + 1} de ${CONDS.length}`,
-        `<code>${esc(CONDS[i].expr)}</code><br>${CONDS[i].ask(r)} → <b>${ok ? "Sí ✓ se cumple" : "No ✗ no se cumple: la regla ya no puede coincidir"}</b>`);
+        `<code>${esc(exprOf(i))}</code><br>${askOf(i, r)} → <b>${ok ? "Sí ✓ se cumple" : "No ✗ no se cumple: la regla ya no puede coincidir"}</b>`);
       if (!ok) { c.result = false; c.failAt = i; c.tDone = t; }
     }
     if (c.result !== null && !c.shown) {
@@ -827,7 +861,7 @@ function mountCustomRulesScene(root) {
       } else {
         setVerdict("ok", "SIN MATCH → PASA AL ORIGEN");
         kit.caption(`n${r.n}`, "✅ Sin match: la petición sigue su camino",
-          `${CONDS[c.failAt].ask(r)} → <b>No</b>. Como las condiciones van unidas con <b>and</b>, basta una que no se cumpla para no aplicar la acción.`);
+          `${askOf(c.failAt, r)} → <b>No</b>. Como las condiciones van unidas con <b>and</b>, basta una que no se cumpla para no aplicar la acción.`);
       }
     }
     if (c.shown && t - c.tDone > 0.7) dispatch(c, t);
@@ -848,6 +882,14 @@ function mountCustomRulesScene(root) {
   root.addEventListener("click", e => {
     const a = e.target.closest("[data-act]");
     if (a) { cfg.action = a.dataset.act; syncCfg(); return; }
+    const o = e.target.closest("[data-op]");
+    if (o) {
+      const i = +o.dataset.op, ops = Object.keys(CONDS[i].ops);
+      cfg.op[i] = ops[(ops.indexOf(cfg.op[i]) + 1) % ops.length];
+      cfg.enabled[i] = true;
+      syncCfg();
+      return;
+    }
     const c = e.target.closest("[data-cond]");
     if (c) { const i = +c.dataset.cond; cfg.enabled[i] = !cfg.enabled[i]; syncCfg(); }
   });
