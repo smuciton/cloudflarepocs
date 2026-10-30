@@ -634,9 +634,12 @@ function mountCustomRulesScene(root) {
     { lane: "bot", path: "/productos", cc: "US", score: 8 }
   ];
   const CONDS = [
-    { expr: 'http.request.uri.path wildcard "/admin*"', test: r => r.path.startsWith("/admin"), show: r => r.path },
-    { expr: 'ip.src.country ne "MX"', test: r => r.cc !== "MX", show: r => r.cc },
-    { expr: "cf.bot_management.score lt 30", test: r => r.score < 30, show: r => `score ${r.score}` }
+    { expr: 'http.request.uri.path wildcard "/admin*"', test: r => r.path.startsWith("/admin"), show: r => r.path,
+      ask: r => `¿El path <b>${esc(r.path)}</b> empieza con <b>/admin</b>?` },
+    { expr: 'ip.src.country ne "MX"', test: r => r.cc !== "MX", show: r => r.cc,
+      ask: r => `<i>ne</i> = "distinto de": ¿el país <b>${r.cc}</b> es distinto de <b>MX</b>?` },
+    { expr: "cf.bot_management.score lt 30", test: r => r.score < 30, show: r => `score ${r.score}`,
+      ask: r => `<i>lt</i> = "menor que": ¿el bot score <b>${r.score}</b> es menor que <b>30</b>?` }
   ];
   const ACTIONS = {
     block: { label: "Block", pill: "403", cls: "bad", back: true, res: "403 block",
@@ -805,7 +808,7 @@ function mountCustomRulesScene(root) {
       const ok = CONDS[i].test(r);
       setBadge(i, ok);
       kit.caption(`ev${r.n}-${i}`, `🔎 Evaluando petición #${r.n} · condición ${i + 1} de ${CONDS.length}`,
-        `<code>${esc(CONDS[i].expr)}</code> → valor real: <b>${esc(CONDS[i].show(r))}</b> ${ok ? "✓ se cumple" : "✗ no se cumple: la expresión ya no puede coincidir"}`);
+        `<code>${esc(CONDS[i].expr)}</code><br>${CONDS[i].ask(r)} → <b>${ok ? "Sí ✓ se cumple" : "No ✗ no se cumple: la regla ya no puede coincidir"}</b>`);
       if (!ok) { c.result = false; c.failAt = i; c.tDone = t; }
     }
     if (c.result !== null && !c.shown) {
@@ -824,7 +827,7 @@ function mountCustomRulesScene(root) {
       } else {
         setVerdict("ok", "SIN MATCH → PASA AL ORIGEN");
         kit.caption(`n${r.n}`, "✅ Sin match: la petición sigue su camino",
-          `Falló <code>${esc(CONDS[c.failAt].expr)}</code> (valor: ${esc(CONDS[c.failAt].show(r))}). Como las condiciones van unidas con <b>and</b>, basta una que no se cumpla para no aplicar la acción.`);
+          `${CONDS[c.failAt].ask(r)} → <b>No</b>. Como las condiciones van unidas con <b>and</b>, basta una que no se cumpla para no aplicar la acción.`);
       }
     }
     if (c.shown && t - c.tDone > 0.7) dispatch(c, t);
