@@ -1076,3 +1076,5 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .scene-titlebar:hover .mac-btn.close { color: #4D0000; }
 .scene-title { margin-left: 10px; font: 600 12px var(--font-display); letter-spacing: 0.5px; color: var(--text-dim); }
 .sc-rulenote { fill: #B45309; font: 600 8.8px var(--font-body); }
+.rl-controls .sc-speed { margin-left: auto; max-width: 300px; }
+.rl-controls .sc-speed b { min-width: 36px; }

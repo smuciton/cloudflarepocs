@@ -122,6 +122,7 @@ function mountRateLimitScene(root) {
       <button class="btn btn-sm" data-rl="play">⏸ Pausa</button>
       <button class="btn btn-sm" data-rl="reset">↺ Reiniciar</button>
       <button class="btn btn-sm" data-rl="full">⛶ Ampliar</button>
+      ${SPEED_HTML}
     </div>
     <div class="rl-stats">
       <div class="rl-stat sent"><b data-out="sent">0</b><span>Intentos enviados</span></div>
@@ -339,7 +340,7 @@ function mountRateLimitScene(root) {
     const dt = last == null ? 0 : Math.min(0.05, (ts - last) / 1000);
     last = ts;
     if (st.running) {
-      st.t += dt;
+      st.t += dt * speed;
       if (st.t >= st.nextAtk) { spawn("atk"); st.nextAtk = st.t + (0.75 + Math.random() * 0.5) / cfg.rate; }
       if (st.t >= st.nextUsr) { spawn("usr"); st.nextUsr = st.t + (0.7 + Math.random() * 0.6) / cfg.userRate; }
     }
@@ -386,7 +387,9 @@ function mountRateLimitScene(root) {
     } else if (b.dataset.rl === "reset") reset();
     else if (b.dataset.rl === "full") toggleFull();
   });
+  let speed = 1;
   root.addEventListener("input", e => {
+    if (e.target.matches("[data-speed]")) { speed = syncSpeed(e.target); return; }
     const a = e.target.dataset.rl;
     if (a === "rate") {
       cfg.rate = +e.target.value;
@@ -416,6 +419,12 @@ function mountRateLimitScene(root) {
 
 // ── Kit compartido para escenas ─────────────────────────────────────────────
 const SVG_NS = "http://www.w3.org/2000/svg";
+const SPEED_HTML = `<label class="sc-speed">🐢 Velocidad <input type="range" min="0.25" max="2" step="0.25" value="1" data-speed><b>1x</b> 🐇</label>`;
+const syncSpeed = input => {
+  const v = +input.value;
+  input.nextElementSibling.textContent = `${v}x`;
+  return v;
+};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const shuffle = a => {
   for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
@@ -487,6 +496,7 @@ function sceneKit(root, { svg, controls = "", stats = "", consoleTitle = "Securi
       <button class="btn btn-sm" data-sc="play">⏸ Pausa</button>
       <button class="btn btn-sm" data-sc="reset">↺ Reiniciar</button>
       <button class="btn btn-sm" data-sc="full">⛶ Ampliar</button>
+      ${SPEED_HTML}
     </div>
     ${stats}
     <div class="rl-console">
@@ -564,7 +574,8 @@ function sceneKit(root, { svg, controls = "", stats = "", consoleTitle = "Securi
 }
 
 function runScene(root, kit, { reset, tick }) {
-  let raf, last = null, running = false, t = 0;
+  let raf, last = null, running = false, t = 0, speed = 1;
+  root.addEventListener("input", e => { if (e.target.matches("[data-speed]")) speed = syncSpeed(e.target); });
   const playBtn = kit.q('[data-sc="play"]'), fullBtn = kit.q('[data-sc="full"]');
   const syncPlay = () => { playBtn.textContent = running ? "⏸ Pausa" : t > 0 ? "▶ Reanudar" : "▶ Iniciar"; };
   const restart = () => {
@@ -594,7 +605,7 @@ function runScene(root, kit, { reset, tick }) {
   const frame = ts => {
     const dt = last == null ? 0 : Math.min(0.05, (ts - last) / 1000);
     last = ts;
-    if (running) { t += dt; tick(t, dt); }
+    if (running) { t += dt * speed; tick(t, dt * speed); }
     raf = requestAnimationFrame(frame);
   };
   restart();
@@ -731,6 +742,7 @@ function mountCustomRulesScene(root) {
       originBoxEl.animate?.([{ fill: "#BFDBFE" }, { fill: "#EFF6FF" }], { duration: 350 });
     }
     kit.drop(p);
+    S.nextSpawn = t + 0.6;
   };
 
   const dispatch = (c, t) => {
@@ -808,7 +820,8 @@ function mountCustomRulesScene(root) {
   };
 
   const tick = t => {
-    if (t >= S.nextSpawn) { spawn(t); S.nextSpawn = t + 1.9; }
+    // Una petición a la vez: la siguiente sale cuando la anterior terminó (evaluación + acción + destino)
+    if (!S.packets.length && !S.cur && t >= S.nextSpawn) { spawn(t); S.nextSpawn = Infinity; }
     const waiting = S.packets.filter(p => p.leg === "wait");
     waiting.forEach(p => {
       const i = S.queue.indexOf(p);
