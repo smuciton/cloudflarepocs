@@ -8,7 +8,8 @@ const SCENES = {
   response: mountResponseScene,
   managed: mountManagedScene,
   owasp: mountOwaspScene,
-  wafoverview: mountWafOverviewScene
+  wafoverview: mountWafOverviewScene,
+  wafpipeline: mountWafPipelineScene
 };
 
 function mountScene(name, root, title = "") {
@@ -1913,6 +1914,218 @@ function mountWafOverviewScene(root) {
   root.addEventListener("click", e => {
     const b = e.target.closest("[data-wthr]");
     if (b) { cfg.thr = +b.dataset.wthr; sync(); }
+  });
+
+  return runScene(root, kit, { reset, tick });
+}
+
+// ── Escena: WAF · overview de todas las funcionalidades (pipeline de fases) ──
+// Orden real del Ruleset Engine: custom rules → rate limiting → managed rules → origen → response rules
+function mountWafPipelineScene(root) {
+  const Y_REQ = 150, Y_RES = 252, SRC = [98, 200], HOLD = [200, Y_REQ];
+  const GATES = [
+    { id: "custom", icon: "🎯", name: "Custom Rules", short: "Custom", x: 292, code: "403" },
+    { id: "rate", icon: "⏱️", name: "Rate Limiting", short: "Rate Limit", x: 358, code: "429" },
+    { id: "managed", icon: "🛡️", name: "Managed Ruleset", short: "Managed", x: 424, code: "403" },
+    { id: "owasp", icon: "📚", name: "OWASP Core", short: "OWASP", x: 490, code: "403" }
+  ];
+  const RESP = { id: "resp", icon: "📤", name: "Response Rules", short: "Response", x: 400 };
+  const SEQ = [
+    { icon: "🧑", who: "Usuario", q: "GET /", short: "GET /", catch: null, resp: false },
+    { icon: "🤖", who: "Bot desde RU", q: "GET /admin/login · RU · bot score 3", short: "/admin", catch: "custom" },
+    { icon: "🔁", who: "Script de fuerza bruta", q: "POST /login · 140 req/min desde la misma IP", short: "login ×140", catch: "rate" },
+    { icon: "☠️", who: "Atacante", q: "POST /index.php · exploit php2shell", short: "php2shell", catch: "managed" },
+    { icon: "💉", who: "Atacante", q: "GET /item?id=1%27/**/oR/**/1", short: "SQLi", catch: "owasp" },
+    { icon: "🧑", who: "Usuario", q: "GET /productos", short: "/productos", catch: null, resp: true }
+  ];
+  const WHY = {
+    custom: ["🎯 Custom Rules lo detiene primero", "Tu propia regla (bot en <code>/admin</code> desde fuera de MX con bot score bajo) coincide: <b>403</b> antes de evaluar cualquier otra capa."],
+    rate: ["⏱️ Rate Limiting lo frena", "Esta IP ya superó el umbral de intentos de login por minuto: <b>429</b>. Las reglas personalizadas no lo veían como ataque; el volumen sí lo delata."],
+    managed: ["🛡️ Managed Ruleset lo bloquea", "La firma de <b>php2shell</b> que mantiene Cloudflare (regla <code>c1d409ad</code>) coincide: <b>403</b>. Tú no escribiste esta regla; llegó sola."],
+    owasp: ["📚 OWASP Core lo bloquea", "Un SQLi ofuscado sin firma exacta: las reglas OWASP suman <b>anomaly score</b> por encima del umbral y lo bloquean con <b>403</b>."],
+    resp: ["📤 Response Rules limpia la respuesta", "El origen respondió <b>200</b> filtrando <code>Server: Apache/2.4.49</code>. En el edge se quita ese header y se agregan HSTS y X-Frame-Options antes de entregarla."]
+  };
+  const SPEED = 190;
+  const cfg = { on: { custom: true, rate: true, managed: true, owasp: true, resp: true } };
+  const pillW = s => Math.round(18 + s.replace(/[^\x20-\x7E]/g, "").length * 5.4 + (/[^\x20-\x7E]/.test(s) ? 14 : 0));
+  const gateBox = (g, y, n) => `
+    <g class="sc-pgate" data-pg="${g.id}">
+      <text class="sc-pg-n" x="${g.x}" y="${y - 32}" text-anchor="middle">${n}</text>
+      <rect x="${g.x - 26}" y="${y - 26}" width="52" height="52" rx="10"/>
+      <text class="sc-pg-i" x="${g.x}" y="${y + 1}" text-anchor="middle">${g.icon}</text>
+      <text class="sc-pg-c" x="${g.x}" y="${y + 19}" text-anchor="middle">×0</text>
+      <text class="sc-pg-l" x="${g.x}" y="${y + 40}" text-anchor="middle">${g.short}</text>
+    </g>`;
+
+  const svg = sceneFrame({
+    edge: [240, 44, 320, 290],
+    outer: `
+      ${wireLine("lane vis", [SRC, HOLD])}${wireLine("out", [[560, Y_REQ], [646, Y_REQ]])}
+      ${wireLine("oback", [[646, Y_RES], [560, Y_RES]])}${wireLine("lane vis", [[240, Y_RES], [SRC[0], SRC[1] + 14]])}
+      ${iconBox({ id: "wp-src", x: 70, y: 200, icon: "🌐", label: "Internet", sub: "usuarios y atacantes", cls: "good" })}
+      ${originBox(648, 104, 196, "tu aplicación")}`,
+    inner: `
+      <line class="sc-lane" x1="240" y1="${Y_REQ}" x2="560" y2="${Y_REQ}"/>
+      <line class="sc-lane" x1="240" y1="${Y_RES}" x2="560" y2="${Y_RES}"/>
+      <text class="sc-label" x="252" y="${Y_REQ - 44}">PETICIÓN →</text>
+      <text class="sc-label" x="548" y="${Y_RES + 52}" text-anchor="end">← RESPUESTA</text>
+      ${GATES.map((g, i) => gateBox(g, Y_REQ, i + 1)).join("")}
+      ${gateBox(RESP, Y_RES, 5)}
+      <g class="rl-status ok sc-verdict"><rect x="270" y="306" width="260" height="22" rx="11"/><text x="400" y="321" text-anchor="middle"></text></g>`
+  });
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Capas activas</span>
+    ${[...GATES, RESP].map(g => `<button class="btn btn-sm on" data-tg="${g.id}">${g.icon} ${g.short}</button>`).join("")}</div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="eval">0</b><span>Peticiones</span></div>
+    <div class="rl-stat block"><b data-out="blocked">0</b><span>Bloqueadas</span></div>
+    <div class="rl-stat pass"><b data-out="origin">0</b><span>Al origen</span></div>
+    <div class="rl-stat good"><b data-out="fixed">0</b><span>Respuestas limpiadas</span></div>
+  </div>`;
+
+  const kit = sceneKit(root, { svg, controls, stats });
+  const gateEl = Object.fromEntries(kit.qa(".sc-pgate").map(g => [g.dataset.pg, g]));
+  const verdict = kit.q(".sc-verdict"), verdictT = kit.q(".sc-verdict text");
+  const originN = kit.q('[data-o="n"]'), originS = kit.q('[data-o="s"]'), originBoxEl = kit.q(".sc-origin > rect");
+  let S;
+
+  const setVerdict = (cls, text) => { verdict.setAttribute("class", `rl-status sc-verdict ${cls}`); verdictT.textContent = text; };
+  const sync = () => {
+    kit.qa("[data-tg]").forEach(b => b.classList.toggle("on", cfg.on[b.dataset.tg]));
+    Object.entries(gateEl).forEach(([id, g]) => g.classList.toggle("off", !cfg.on[id]));
+  };
+  const bump = id => { S.hits[id]++; gateEl[id].querySelector(".sc-pg-c").textContent = `×${S.hits[id]}`; };
+  const next = () => {
+    if (!S.deck.length) S.deck = S.first ? shuffle(SEQ.slice()) : SEQ.slice().reverse();
+    S.first = true;
+    return S.deck.pop();
+  };
+  const len = pts => pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
+  const go = (p, pts, t) => Object.assign(p, { path: pts, t0: t, dur: len(pts) / SPEED, checked: new Set() });
+
+  const reset = () => {
+    S = { cur: null, n: 0, eval: 0, blocked: 0, origin: 0, fixed: 0, nextSpawn: 0.4, deck: [], first: false,
+      hits: { custom: 0, rate: 0, managed: 0, owasp: 0, resp: 0 } };
+    ["eval", "blocked", "origin", "fixed"].forEach(k => kit.out(k, 0));
+    Object.values(gateEl).forEach(g => { g.querySelector(".sc-pg-c").textContent = "×0"; g.classList.remove("scan", "hit", "pass"); });
+    originN.textContent = "0";
+    originS.textContent = "";
+    setVerdict("ok", "ESPERANDO PETICIÓN");
+    kit.log("Escuchando eventos del WAF…", "hint");
+    sync();
+  };
+
+  const spawn = t => {
+    const r = { ...next(), n: ++S.n };
+    const label = `${r.icon} ${r.short}`;
+    const p = { r, g: kit.pill("neutral", label, pillW(label)), leg: "req", hold: 0 };
+    go(p, [SRC, HOLD, [240, Y_REQ], [560, Y_REQ], [646, Y_REQ]], t);
+    S.cur = p;
+    S.eval++;
+    kit.out("eval", S.eval);
+    Object.values(gateEl).forEach(g => g.classList.remove("hit", "pass"));
+    setVerdict("near", `${r.icon} ${r.who.toUpperCase()}`);
+    kit.caption(`s${r.n}`, `${r.icon} Petición #${r.n}: ${r.who}`,
+      `<code>${esc(r.q)}</code><br>Recorre las capas del WAF en el orden en que Cloudflare las ejecuta. La primera que coincide decide.`);
+  };
+
+  // Revisión en una capa: pausa breve con "escaneo" y luego pasa o se detiene
+  const check = (p, g, t, caught) => {
+    p.hold = t + 0.5;
+    const el = gateEl[g.id];
+    el.classList.add("scan");
+    setTimeout(() => el.classList.remove("scan"), 480 / Math.max(0.25, S.speedHint || 1));
+    p.pending = { g, caught };
+  };
+
+  const resolve = (p, t) => {
+    const { g, caught } = p.pending;
+    p.pending = null;
+    const el = gateEl[g.id], r = p.r;
+    if (caught) {
+      el.classList.add("hit");
+      bump(g.id);
+      kit.impact([g.x - 26, Y_REQ]);
+      kit.relabel(p.g, "bad", `${r.icon} ${g.code}`, pillW(`${r.icon} ${g.code}`));
+      p.leg = "back";
+      go(p, [[g.x - 30, Y_REQ], [240, Y_REQ], HOLD, SRC], t);
+      S.blocked++;
+      kit.out("blocked", S.blocked);
+      setVerdict("block", `⛔ ${g.name.toUpperCase()} · ${g.code}`);
+      kit.caption(`c${r.n}`, WHY[g.id][0], WHY[g.id][1]);
+      kit.logReq(r.who, r.q, `${g.code} · ${g.name}`, "bad");
+    } else el.classList.add("pass");
+  };
+
+  const tick = (t, dt) => {
+    if (!S.cur && t >= S.nextSpawn) spawn(t);
+    const p = S.cur;
+    if (!p) return;
+    if (p.hold > t) { p.t0 += dt; return; }
+    if (p.pending) { resolve(p, t); if (p.leg === "back") return; }
+    const k = Math.min(1, (t - p.t0) / p.dur), pos = along(p.path, k);
+    kit.place(p.g, pos);
+    const r = p.r;
+    if (p.leg === "req") {
+      for (const g of GATES) {
+        if (p.checked.has(g.id) || pos[0] < g.x - 26) continue;
+        p.checked.add(g.id);
+        if (!cfg.on[g.id]) continue;
+        check(p, g, t, r.catch === g.id);
+        return;
+      }
+    }
+    if (p.leg === "res" && !p.checked.has("resp") && pos[0] <= RESP.x + 26 && cfg.on.resp) {
+      p.checked.add("resp");
+      check(p, RESP, t, false);
+      if (r.resp) p.fix = true;
+      return;
+    }
+    if (p.fix && !p.pending && p.leg === "res" && !p.fixDone && pos[0] < RESP.x) {
+      p.fixDone = true;
+      bump("resp");
+      S.fixed++;
+      kit.out("fixed", S.fixed);
+      kit.relabel(p.g, "good", `${r.icon} 200 limpio`, pillW(`${r.icon} 200 limpio`));
+      setVerdict("ok", "📤 RESPUESTA LIMPIADA · 200");
+      kit.caption(`f${r.n}`, WHY.resp[0], WHY.resp[1]);
+      kit.logReq(r.who, "respuesta 200", "200 · Server removido, HSTS agregado", "ok");
+    }
+    if (k < 1) return;
+    if (p.leg === "req") {
+      S.origin++;
+      kit.out("origin", S.origin);
+      originN.textContent = S.origin;
+      const atk = !!r.catch;
+      originS.textContent = atk ? "⚠ Llegó un ataque" : "✓ Respondió 200";
+      originS.setAttribute("class", `sc-origin-s ${atk ? "bad" : ""}`);
+      originBoxEl.animate?.([{ fill: atk ? "#FECACA" : "#BFDBFE" }, { fill: "#EFF6FF" }], { duration: 400 });
+      if (atk) {
+        const g = GATES.find(x => x.id === r.catch);
+        setVerdict("near", "⚠ ATAQUE EN EL ORIGEN");
+        kit.caption(`o${r.n}`, `⚠ Sin ${g.name}, este ataque llega a tu aplicación`,
+          `Ninguna otra capa estaba diseñada para detenerlo. Cada capa del WAF cubre un tipo de riesgo distinto: <b>enciende ${g.icon} ${g.short}</b> para volver a protegerte.`);
+        kit.logReq(r.who, r.q, "200 ⚠ ataque en el origen", "warn");
+      } else {
+        setVerdict("ok", "✅ PASA TODAS LAS CAPAS · 200");
+        kit.caption(`o${r.n}`, "✅ Tráfico legítimo: pasa todas las capas",
+          "Ninguna regla coincide, así que la petición llega a tu origen. La respuesta regresa por <b>📤 Response Rules</b>.");
+        kit.logReq(r.who, r.q, "200 → origen", "ok");
+      }
+      kit.relabel(p.g, r.resp ? "warn" : "good", `${r.icon} 200${r.resp ? " + Server" : ""}`, pillW(`${r.icon} 200${r.resp ? " + Server" : ""}`));
+      p.leg = "res";
+      go(p, [[646, Y_RES], [560, Y_RES], [240, Y_RES], [SRC[0], SRC[1] + 14]], t);
+      return;
+    }
+    kit.drop(p);
+    S.cur = null;
+    S.nextSpawn = t + 0.7;
+  };
+
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-tg]");
+    if (!b) return;
+    cfg.on[b.dataset.tg] = !cfg.on[b.dataset.tg];
+    sync();
   });
 
   return runScene(root, kit, { reset, tick });

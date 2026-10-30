@@ -1150,3 +1150,15 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .sc-zone { fill: #374151; font: 700 10px var(--font-display); letter-spacing: 1px; text-transform: uppercase; }
 .sc-card.sc-sig.flash > rect { fill: #FEF2F2; stroke: #DC2626; }
 .sc-zones rect { opacity: 0.85; stroke: none; }
+
+/* ---------- WAF overview: pipeline de capas ---------- */
+.sc-pgate rect { fill: #FFFFFF; stroke: #F6821F; stroke-width: 1.6; transition: fill 0.2s, stroke 0.2s; }
+.sc-pg-i { font-size: 18px; }
+.sc-pg-c { fill: #6B7280; font: 700 8.5px var(--font-mono); }
+.sc-pg-l { fill: #374151; font: 700 8.5px var(--font-display); letter-spacing: 0.5px; }
+.sc-pg-n { fill: #B45309; font: 700 8px var(--font-display); }
+.sc-pgate.scan rect { fill: #FFF7ED; stroke-width: 3; filter: drop-shadow(0 0 8px rgba(246, 130, 31, 0.7)); }
+.sc-pgate.pass rect { fill: #ECFDF5; stroke: #16A34A; }
+.sc-pgate.hit rect { fill: #FEF2F2; stroke: #DC2626; stroke-width: 2.6; filter: drop-shadow(0 0 8px rgba(220, 38, 38, 0.6)); }
+.sc-pgate.off { opacity: 0.3; }
+.sc-pgate.off rect { stroke-dasharray: 4 3; }

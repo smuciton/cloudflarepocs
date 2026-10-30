@@ -479,7 +479,7 @@ const BLOG = [
 // diagram.type "client": navegador → tu sitio → terceros (Page Shield)
 const LEARN = {
   waf: {
-    scene: "wafoverview",
+    scene: "wafpipeline",
     features: [
       { icon: "🎯", name: "WAF Custom Rules", blurb: "Reglas a tu medida con expresiones sobre cualquier campo del request.",
         detail: "Escribes condiciones sobre IP, URI, método, headers, cookies, ASN, geografía, JA3/JA4, Bot Score o Attack Score — y aplicas acción: block, challenge (Turnstile/JS), skip o log. Ideal para cerrar endpoints por país, frenar scrapers por fingerprint o excluir tráfico interno.",
