@@ -57,8 +57,8 @@ function addSceneChrome(root, scene, title) {
   const overlay = document.createElement("div");
   overlay.className = "scene-start";
   overlay.innerHTML = `
-    <button class="btn btn-primary" data-chrome="start">▶ Iniciar animación</button>
-    <button class="btn" data-chrome="startfull">⛶ Iniciar en pantalla completa</button>`;
+    <button class="btn btn-primary" data-chrome="startfull">▶ Iniciar simulación</button>
+    <span class="scene-start-hint">Se abre en pantalla completa con controles y Security Events en vivo</span>`;
   stage.appendChild(overlay);
 
   // Contadores + Security Events en un panel lateral (columna derecha en la vista ampliada)
