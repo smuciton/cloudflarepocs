@@ -1196,7 +1196,7 @@ function mountResponseScene(root) {
 // Basado en https://blog.cloudflare.com/php-vulnerabilities-waf-protection/
 function mountManagedScene(root) {
   // RULE_T es solo la posición inicial del marcador: la regla se publica cuando Cloudflare detecta los primeros exploits (ZERO_PASS)
-  const T = 38, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, RULE_T = 8, DEP = 7, ZERO_PASS = 2, DISC_T = 18, MUT_T = 20, PATCH_T = 31, ATK_END = 36;
+  const T = 42, SQLI_T = 1, SQLI_END = 5, LEAK_T = 6, ZERO_MIN = 4.5, RULE_T = 11, DEP = 7, ZERO_PASS = 5, DISC_T = 21, MUT_T = 23, PATCH_T = 34, ATK_END = 40;
   const PATH = {
     usr: [[98, 120], [240, 168]], bot: [[98, 262], [240, 252]],
     out: [[560, 200], [646, 200]], oback: [[646, 226], [560, 226]], exfil: [[240, 280], [98, 284]]
@@ -1439,7 +1439,7 @@ function mountManagedScene(root) {
       bot.classList.add("sc-dim");
       toast.setAttribute("class", "sc-toast");
     }
-    if (cfg.enabled && S.leaked && !S.ruled && S.zeroPass >= ZERO_PASS) {
+    if (cfg.enabled && S.leaked && !S.ruled && S.zeroPass >= ZERO_PASS && ct >= LEAK_T + ZERO_MIN) {
       S.ruled = true;
       S.ruleAt = ct;
       newRows.forEach(r => r.classList.add("on"));
