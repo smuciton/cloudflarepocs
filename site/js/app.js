@@ -681,10 +681,6 @@ function viewProducto(id) {
         <div class="card" style="--accent:${p.accent}">
           <div class="card-kicker">Diagrama interactivo</div>
           <div id="diagram-slot">${diagramSlotHTML(id)}</div>
-          <div class="diagram-legend">
-            <span><i class="lg good"></i> Tráfico legítimo</span>
-            <span><i class="lg bad"></i> Ataque / bloqueado</span>
-          </div>
         </div>
       </div>
     </div>`;

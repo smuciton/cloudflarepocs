@@ -7,7 +7,8 @@ const SCENES = {
   customrules: mountCustomRulesScene,
   response: mountResponseScene,
   managed: mountManagedScene,
-  owasp: mountOwaspScene
+  owasp: mountOwaspScene,
+  wafoverview: mountWafOverviewScene
 };
 
 function mountScene(name, root, title = "") {
@@ -1709,6 +1710,209 @@ function mountOwaspScene(root) {
     if (p) cfg.pl = +p.dataset.pl;
     if (h) cfg.thr = h.dataset.thr;
     if (p || h) sync();
+  });
+
+  return runScene(root, kit, { reset, tick });
+}
+
+// ── Escena: WAF · visión general con Attack Score (ML) ──────────────────────
+function mountWafOverviewScene(root) {
+  const LANES = {
+    usr: { icon: "🧑", who: "Usuario", label: "Usuarios legítimos", y: 110, cls: "good" },
+    atk: { icon: "💀", who: "Atacante", label: "Atacantes", y: 280, cls: "bad" }
+  };
+  const HOLD = [196, 200], ENTRY = [240, 200], EXIT = [[560, 200], [646, 200]];
+  const lanePath = k => [[98, LANES[k].y], HOLD];
+  const POOL = [
+    { lane: "usr", q: "GET /", score: 92, sig: null },
+    { lane: "usr", q: "GET /productos?q=zapatos", score: 88, sig: null },
+    { lane: "usr", q: "POST /login user=ana", score: 76, sig: null },
+    { lane: "usr", q: "GET /blog?c=te amo <3", score: 61, sig: null },
+    { lane: "atk", q: "GET /item?id=1' OR 1=1--", score: 3, sig: "SQLi" },
+    { lane: "atk", q: "GET /?q=<script>alert(1)</script>", score: 6, sig: "XSS" },
+    { lane: "atk", q: "GET /static/../../etc/passwd", score: 9, sig: "LFI" },
+    { lane: "atk", q: "GET /item?id=1%27/**/oR/**/1", score: 17, sig: null },
+    { lane: "atk", q: "GET /?q=<svg/onload=confirm`1`>", score: 14, sig: null }
+  ];
+  const THRS = [10, 20, 50];
+  const cfg = { thr: 20 };
+  const GX0 = 262, GW = 276;
+  const gx = v => GX0 + GW * (v - 1) / 98;
+  const zone = s => (s <= 20 ? "ataque" : s <= 50 ? "probable ataque" : s <= 80 ? "probable limpio" : "limpio");
+  const tag = r => `${LANES[r.lane].icon} #${r.n}`;
+  const pillW = s => Math.round(18 + s.replace(/[^\x20-\x7E]/g, "").length * 5.4 + (/[^\x20-\x7E]/.test(s) ? 14 : 0));
+  const ZONES = [[1, 20, "#DC2626"], [20, 50, "#F97316"], [50, 80, "#FBBF24"], [80, 99, "#16A34A"]];
+
+  const svg = sceneFrame({
+    edge: [240, 44, 320, 300],
+    outer: Object.keys(LANES).map(k => wireLine(`lane ${k === "usr" ? "vis" : "bot"}`, lanePath(k))).join("") + wireLine("out", EXIT)
+      + Object.entries(LANES).map(([k, l]) => iconBox({ id: `wo-${k}`, x: 70, y: l.y, icon: l.icon, label: l.label, cls: l.cls })).join("")
+      + originBox(648, 110, 180, "tu aplicación"),
+    inner: `
+      <g class="sc-insp"><rect x="254" y="80" width="292" height="34" rx="8"/>
+        <text class="sc-insp-l" x="266" y="93">INSPECCIONANDO</text>
+        <text class="sc-insp-t" x="266" y="107">—</text>
+      </g>
+      <g class="sc-card"><rect x="254" y="122" width="292" height="104" rx="8"/>
+        <text class="rl-rule-t" x="266" y="140">🧠 WAF Attack Score (ML)</text>
+        <text class="sc-wscore" x="534" y="141" text-anchor="end">—</text>
+        <g class="sc-zones">${ZONES.map(([a, b, c]) => `<rect x="${gx(a)}" y="156" width="${gx(b) - gx(a)}" height="12" style="fill:${c}"/>`).join("")}</g>
+        ${[1, 20, 50, 80, 99].map(v => `<text class="sc-tick" x="${gx(v)}" y="182" text-anchor="middle">${v}</text>`).join("")}
+        <line class="sc-thr-line" x1="0" y1="150" x2="0" y2="174"/>
+        <g class="sc-needle"><path d="M -6 -9 L 6 -9 L 0 0 Z"/><line x1="0" y1="0" x2="0" y2="16"/></g>
+        <text class="sc-zone" x="400" y="200" text-anchor="middle"></text>
+        <text class="sc-mono sc-wrule" x="400" y="216" text-anchor="middle"></text>
+      </g>
+      <g class="sc-card sc-sig"><rect x="254" y="234" width="292" height="30" rx="8"/>
+        <text class="sc-mono sc-sig-t" x="266" y="253">🛡 Managed Ruleset · firma: —</text>
+      </g>
+      <g class="rl-status ok sc-verdict"><rect x="270" y="272" width="260" height="30" rx="15"/><text x="400" y="291" text-anchor="middle"></text></g>
+      <text class="sc-hint" x="400" y="322" text-anchor="middle">1–20 ataque · 21–50 prob. ataque · 51–80 prob. limpio · 81–99 limpio</text>`
+  });
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Bloquear si Attack Score ≤</span>
+    ${THRS.map(v => `<button class="btn btn-sm" data-wthr="${v}">${v}</button>`).join("")}</div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="eval">0</b><span>Peticiones</span></div>
+    <div class="rl-stat block"><b data-out="blocked">0</b><span>Bloqueadas</span></div>
+    <div class="rl-stat pass"><b data-out="origin">0</b><span>Al origen</span></div>
+  </div>`;
+
+  const kit = sceneKit(root, { svg, controls, stats });
+  const insp = kit.q(".sc-insp-t"), scoreT = kit.q(".sc-wscore"), needle = kit.q(".sc-needle"), zoneT = kit.q(".sc-zone");
+  const ruleT = kit.q(".sc-wrule"), sigCard = kit.q(".sc-sig"), sigT = kit.q(".sc-sig-t"), thrLine = kit.q(".sc-thr-line");
+  const verdict = kit.q(".sc-verdict"), verdictT = kit.q(".sc-verdict text");
+  const originN = kit.q('[data-o="n"]'), originS = kit.q('[data-o="s"]'), originBoxEl = kit.q(".sc-origin > rect");
+  let S;
+
+  const setVerdict = (cls, text) => { verdict.setAttribute("class", `rl-status sc-verdict ${cls}`); verdictT.textContent = text; };
+  const sync = () => {
+    kit.segment("data-wthr", cfg.thr);
+    const x = gx(cfg.thr);
+    thrLine.setAttribute("x1", x);
+    thrLine.setAttribute("x2", x);
+    ruleT.textContent = `regla: cf.waf.score le ${cfg.thr} → block`;
+  };
+  const draw = () => {
+    if (!S.deck.length) S.deck = shuffle(POOL.slice());
+    return S.deck.pop();
+  };
+
+  const reset = () => {
+    S = { packets: [], cur: null, n: 0, eval: 0, blocked: 0, origin: 0, nextSpawn: 0.4, disp: 50, deck: [] };
+    ["eval", "blocked", "origin"].forEach(k => kit.out(k, 0));
+    originN.textContent = "0";
+    originS.textContent = "";
+    insp.textContent = "—";
+    scoreT.textContent = "—";
+    zoneT.textContent = "";
+    sigT.textContent = "🛡 Managed Ruleset · firma: —";
+    setVerdict("ok", "ESPERANDO PETICIÓN");
+    kit.log("Escuchando eventos del WAF…", "hint");
+    sync();
+  };
+
+  const spawn = t => {
+    const r = { ...draw(), n: ++S.n };
+    const label = tag(r);
+    S.packets.push({ r, g: kit.pill("neutral", label, pillW(label)), leg: "in", path: lanePath(r.lane), t0: t, dur: 0.85 });
+  };
+
+  const arrive = (p, t) => {
+    if (p.leg === "in") {
+      p.leg = "wait";
+      kit.place(p.g, HOLD);
+      S.cur = { p, t0: t, stage: 0 };
+      const r = p.r;
+      insp.textContent = `${tag(r)} ${LANES[r.lane].who} · ${r.q.length > 30 ? r.q.slice(0, 29) + "…" : r.q}`;
+      setVerdict("near", "ANALIZANDO…");
+      scoreT.textContent = "…";
+      zoneT.textContent = "";
+      sigT.textContent = "🛡 Managed Ruleset · firma: revisando…";
+      sigCard.classList.remove("flash", "pass");
+      S.eval++;
+      kit.out("eval", S.eval);
+      kit.caption(`a${r.n}`, `🔎 Petición #${r.n} de ${LANES[r.lane].who.toLowerCase()}`,
+        `<code>${esc(r.q)}</code><br>El modelo de ML analiza la petición completa y le asigna un <b>Attack Score</b> de 1 (ataque) a 99 (limpio). En paralelo, el Managed Ruleset busca firmas conocidas.`);
+      return;
+    }
+    if (p.leg === "out") {
+      S.origin++;
+      kit.out("origin", S.origin);
+      originN.textContent = S.origin;
+      originS.textContent = p.r.lane === "atk" ? "⚠ Llegó un ataque" : "✓ Petición legítima";
+      originS.setAttribute("class", `sc-origin-s ${p.r.lane === "atk" ? "bad" : ""}`);
+      originBoxEl.animate?.([{ fill: p.r.lane === "atk" ? "#FECACA" : "#BFDBFE" }, { fill: "#EFF6FF" }], { duration: 400 });
+    }
+    kit.drop(p);
+    S.nextSpawn = t + 0.6;
+  };
+
+  const evaluate = t => {
+    const c = S.cur;
+    if (!c) return;
+    const r = c.p.r, el = t - c.t0;
+    if (c.stage === 0 && el >= 0.9) {
+      c.stage = 1;
+      scoreT.textContent = `score ${r.score}`;
+      zoneT.textContent = `zona: ${zone(r.score)}`;
+      if (r.sig) { sigT.textContent = `🛡 Managed Ruleset · firma: ${r.sig} ✓ match`; kit.flash(sigCard, "flash", 900); }
+      else sigT.textContent = "🛡 Managed Ruleset · firma: sin coincidencia";
+      const evasive = r.lane === "atk" && !r.sig;
+      kit.caption(`s${r.n}`, `🧠 Attack Score: ${r.score} · ${zone(r.score)}`,
+        r.sig ? `Además, el Managed Ruleset la reconoce como <b>${r.sig}</b>: doble señal de ataque.`
+          : evasive ? "Ninguna firma conocida coincide: es una <b>variante evasiva</b>. Solo el modelo de ML la detecta por cómo se ve el payload."
+            : "No hay firma de ataque y el modelo la ve como tráfico normal.");
+    }
+    if (c.stage === 1 && el >= 1.9) {
+      c.stage = 2;
+      const blocked = r.score <= cfg.thr || !!r.sig;
+      c.blocked = blocked;
+      const why = [r.score <= cfg.thr ? `score ${r.score} ≤ ${cfg.thr}` : null, r.sig ? `firma ${r.sig}` : null].filter(Boolean).join(" y ");
+      if (blocked) {
+        setVerdict("block", "⛔ BLOQUEADA · 403");
+        kit.caption(`v${r.n}`, "⛔ Bloqueada en el edge", `Por ${why}: Cloudflare responde <b>403</b> y la petición nunca toca tu aplicación.`);
+      } else if (r.lane === "atk") {
+        setVerdict("near", "⚠ SE COLÓ AL ORIGEN");
+        kit.caption(`v${r.n}`, `⚠ Se coló: score ${r.score} > ${cfg.thr}`,
+          `Con un umbral tan estricto como <b>≤ ${cfg.thr}</b> esta variante evasiva pasa. El umbral recomendado de <b>20</b> la habría detenido.`);
+      } else {
+        setVerdict("ok", "✅ PERMITIDA · 200");
+        kit.caption(`v${r.n}`, "✅ Pasa al origen", `Score ${r.score} > ${cfg.thr} y sin firmas: la petición llega a tu aplicación sin fricción.`);
+      }
+    }
+    if (c.stage === 2 && el >= 2.6) {
+      const p = c.p;
+      S.cur = null;
+      if (c.blocked) {
+        kit.impact(ENTRY);
+        const label = `${tag(r)} 403`;
+        kit.relabel(p.g, "bad", label, pillW(label));
+        Object.assign(p, { leg: "back", path: [HOLD, [98, LANES[r.lane].y]], dur: 0.85, t0: t });
+        S.blocked++;
+        kit.out("blocked", S.blocked);
+        kit.logReq(`score ${r.score}`, r.q, `403 block${r.sig ? ` · ${r.sig}` : " · ML"}`, "bad");
+      } else {
+        const label = `${tag(r)} 200`;
+        kit.relabel(p.g, r.lane === "atk" ? "exploit" : "good", label, pillW(label));
+        Object.assign(p, { leg: "out", path: EXIT, dur: 0.75, t0: t });
+        kit.logReq(`score ${r.score}`, r.q, r.lane === "atk" ? "200 ⚠ ataque en el origen" : "200 → origen", r.lane === "atk" ? "warn" : "ok");
+      }
+    }
+  };
+
+  const tick = (t, dt) => {
+    if (!S.packets.length && !S.cur && t >= S.nextSpawn) { spawn(t); S.nextSpawn = Infinity; }
+    const waiting = S.packets.filter(p => p.leg === "wait");
+    S.packets = waiting.concat(kit.move(S.packets.filter(p => p.leg !== "wait"), t, arrive));
+    evaluate(t);
+    const target = S.cur && S.cur.stage >= 1 ? S.cur.p.r.score : S.cur ? 50 + 30 * Math.sin(t * 9) : S.disp;
+    S.disp += (target - S.disp) * Math.min(1, dt * 7);
+    needle.setAttribute("transform", `translate(${gx(Math.max(1, Math.min(99, S.disp)))} 156)`);
+  };
+
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-wthr]");
+    if (b) { cfg.thr = +b.dataset.wthr; sync(); }
   });
 
   return runScene(root, kit, { reset, tick });

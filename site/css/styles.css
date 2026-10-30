@@ -1142,3 +1142,11 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .scene-wrap:not(.scene-full) > :not(.scene-stage) { display: none; }
 .card:has(.scene-wrap) .diagram-legend { display: none; }
 .scene-start-hint { font-size: 12px; color: #E5E7EB; text-align: center; max-width: 280px; }
+
+/* ---------- WAF overview: Attack Score ---------- */
+.sc-wscore { fill: #111827; font: 700 12px var(--font-mono); }
+.sc-needle path { fill: #111827; }
+.sc-needle line { stroke: #111827; stroke-width: 2; }
+.sc-zone { fill: #374151; font: 700 10px var(--font-display); letter-spacing: 1px; text-transform: uppercase; }
+.sc-card.sc-sig.flash > rect { fill: #FEF2F2; stroke: #DC2626; }
+.sc-zones rect { opacity: 0.85; stroke: none; }
