@@ -636,9 +636,70 @@ function viewLearning() {
           <div class="card-kicker" style="--accent:#A78BFA">${c.icon} Concepto</div>
           <h3>${c.title}</h3>
           <p>${c.tldr}</p>
-          <div class="meta-row">${levelChip(c)}<span>·</span><span>⏱ ${c.mins} min</span><span>·</span><span>▶ simulación en vivo</span></div>
+          <div class="meta-row">${levelChip(c)}<span>·</span><span>⏱ ${c.mins} min</span><span>·</span><span>${c.scene ? "▶ simulación en vivo" : "📊 diagrama por modo"}</span></div>
         </div>`).join("")}</div>` : `<div class="card soon-card lc-soon"><p class="muted">🚧 En construcción — nuevos conceptos próximamente.</p></div>`}`;
     }).join("")}`;
+}
+
+// Diagrama estático de un modo de encriptación: navegador → Cloudflare → origen, con el estado de cada conexión
+const SSL_LEG = {
+  https: ["🔒", "HTTPS", "ok"], http: ["🔓", "HTTP", "bad"], any: ["⇄", "HTTP o HTTPS", "info"],
+  valid: ["🔒", "HTTPS · cert validado", "ok"], novalid: ["🔒", "HTTPS · sin validar", "warn"], auto: ["🔍", "el más seguro", "info"]
+};
+function sslModeDiagram(m) {
+  const lock = (x, open) => `<g class="lcm-lock"><rect x="${x - 5.5}" y="63" width="11" height="8.5" rx="1.8"/>
+    <path d="${open ? `M ${x + 3.4} 63 V 59.6 a 3.4 3.4 0 0 0 -6.8 0 V 58` : `M ${x - 3.4} 63 V 59.6 a 3.4 3.4 0 0 1 6.8 0 V 63`}"/></g>`;
+  const leg = (x, k) => {
+    const [ic, label, cls] = SSL_LEG[k];
+    const icon = ic === "🔒" || ic === "🔓" ? lock(x, ic === "🔓") : `<text class="lcm-ic" x="${x}" y="69" text-anchor="middle">${ic}</text>`;
+    return `<g class="lcm-leg ${cls}">
+      <line x1="${x - 44}" y1="64" x2="${x - 16}" y2="64"/><line x1="${x + 16}" y1="64" x2="${x + 40}" y2="64"/>
+      <path d="M ${x + 34} 60 L ${x + 41} 64 L ${x + 34} 68"/>
+      <circle cx="${x}" cy="64" r="14"/>${icon}
+      <text class="lcm-leg-t" x="${x}" y="100" text-anchor="middle">${label}</text></g>`;
+  };
+  return `<svg class="lcm-svg" viewBox="0 0 440 124" xmlns="http://www.w3.org/2000/svg">
+    <g class="lcm-browser"><rect x="16" y="38" width="72" height="52" rx="3"/><rect class="bar" x="16" y="38" width="72" height="9" rx="2"/>
+      <circle cx="21" cy="42.5" r="1.4"/><circle cx="26" cy="42.5" r="1.4"/><circle cx="31" cy="42.5" r="1.4"/>
+      <rect class="ln" x="24" y="54" width="34" height="5" rx="1"/><rect class="ln" x="24" y="64" width="54" height="5" rx="1"/><rect class="ln" x="24" y="74" width="44" height="5" rx="1"/></g>
+    <text class="lcm-node-t" x="52" y="112" text-anchor="middle">Navegador</text>
+    ${leg(136, m.leg1)}
+    <circle class="lcm-cf" cx="220" cy="64" r="40"/>
+    ${cfCloud(198, 40, 0.95)}
+    <text class="lcm-cf-t" x="220" y="90" text-anchor="middle">Cloudflare</text>
+    ${leg(304, m.leg2)}
+    <g class="lcm-origin"><rect x="352" y="52" width="74" height="24" rx="4"/>
+      ${[0, 1, 2, 3, 4, 5].map(i => `<circle cx="${362 + i * 7}" cy="64" r="1.6"/>`).join("")}<rect class="led" x="410" y="60" width="9" height="8" rx="1.5"/></g>
+    <text class="lcm-node-t" x="389" y="112" text-anchor="middle">Servidor de origen</text>
+  </svg>`;
+}
+function sslModeDetail(m) {
+  const NOTE_IC = { ok: "✅", warn: "⚠️", bad: "⛔", info: "ℹ️" };
+  return `<span class="lcm-tag">${m.name}</span>
+    <p class="lcm-desc">${m.desc}</p>
+    ${sslModeDiagram(m)}
+    ${(m.leg2 === "valid" || m.leg2 === "novalid") && m.leg1 === "https" ? `<p class="lcm-foot">* Si el visitante entra por HTTP, la conexión al origen también va por HTTP.</p>` : ""}
+    <div class="lcm-used"><span>Se usa para</span><p>${m.used}</p></div>
+    <div class="lcm-note ${m.note[0]}">${NOTE_IC[m.note[0]]} ${m.note[1]}</div>
+    ${m.api ? `<p class="lcm-api">API: <code>ssl = "${m.api}"</code></p>` : `<p class="lcm-api">API: <code>ssl_automatic_mode = "auto"</code></p>`}`;
+}
+function sslModesPanel(c) {
+  const sel = c.modes.find(m => m.id === state.sslMode) || c.modes[0];
+  return `
+    <div class="card" style="--accent:#A78BFA">
+      <div class="card-kicker">Modo de encriptación</div>
+      <p class="muted lcm-intro">Elige un modo para ver cómo cifra Cloudflare cada conexión.</p>
+      <div class="lcm-list">${c.modes.map(m => `
+        <button class="lcm-opt ${m.id === sel.id ? "on" : ""}" data-sslm="${m.id}">
+          <span class="lcm-radio"></span>
+          <span class="lcm-opt-b"><b>${m.name}</b>${m.badge ? ` <span class="lcm-badge">${m.badge}</span>` : ""}</span>
+          <span class="lcm-mini">${[m.leg1, m.leg2].map(k => `<i class="${SSL_LEG[k][2]}" title="${SSL_LEG[k][1]}"></i>`).join("")}</span>
+        </button>`).join("")}</div>
+    </div>
+    <div class="card lcm-detail-card" style="--accent:#A78BFA">
+      <div class="card-kicker">Detalles del modo</div>
+      <div id="lcm-detail">${sslModeDetail(sel)}</div>
+    </div>`;
 }
 
 function viewConcept(id) {
@@ -666,6 +727,11 @@ function viewConcept(id) {
           <thead><tr>${c.compare.head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
           <tbody>${c.compare.rows.map(r => `<tr>${r.map((v, i) => i ? `<td>${v}</td>` : `<th>${v}</th>`).join("")}</tr>`).join("")}</tbody>
         </table></div>
+        ${c.extras ? `
+        <h4 class="learn-h">${c.extras.title}</h4>
+        <p class="muted">${c.extras.intro}</p>
+        <div class="lc-extras">${c.extras.items.map(x => `
+          <div class="lc-extra"><span class="lc-extra-ic">${x.icon}</span><div><b>${x.name}</b><p>${x.desc}</p></div></div>`).join("")}</div>` : ""}
         <h4 class="learn-h">🔗 Cómo lo usa Cloudflare</h4>
         <div class="lc-chips">${c.cf.map(x => `<a class="lc-chip" href="#/${x.route}">${x.label}</a>`).join("")}</div>
         <h4 class="learn-h">💬 Preguntas del cliente</h4>
@@ -677,13 +743,14 @@ function viewConcept(id) {
         <h4 class="learn-h">Ver también</h4>
         <div class="lc-chips">${c.related.map(rid => LEARNING.concepts.find(x => x.id === rid)).filter(Boolean)
           .map(r => `<a class="lc-chip lc-chip-concept" href="#/learning/${r.id}">${r.icon} ${r.title}</a>`).join("")}</div>
-        ${c.source ? `<p class="lc-source">📄 Fuente: <a href="${c.source.url}" target="_blank" rel="noopener">${c.source.label} ↗</a></p>` : ""}
+        ${c.source ? `<p class="lc-source">📄 Fuente: ${[].concat(c.source).map(s => `<a href="${s.url}" target="_blank" rel="noopener">${s.label} ↗</a>`).join(" · ")}</p>` : ""}
       </div>
       <div class="product-diagram">
+        ${c.modes ? sslModesPanel(c) : `
         <div class="card" style="--accent:#A78BFA">
           <div class="card-kicker">Diagrama interactivo</div>
           <div class="scene-wrap" id="lc-scene" data-scene="${c.scene}" data-title="${c.title}" data-hint="Se abre en pantalla completa con controles y eventos en vivo"></div>
-        </div>
+        </div>`}
       </div>
     </div>`;
 }
@@ -989,6 +1056,12 @@ function wire(r, arg) {
   if (r === "learning" && arg) {
     const el = $("#lc-scene");
     if (el) state.scene = mountScene(el.dataset.scene, el, el.dataset.title);
+    const c = LEARNING.concepts.find(x => x.id === arg);
+    $$("[data-sslm]").forEach(b => b.addEventListener("click", () => {
+      state.sslMode = b.dataset.sslm;
+      $$("[data-sslm]").forEach(x => x.classList.toggle("on", x === b));
+      $("#lcm-detail").innerHTML = sslModeDetail(c.modes.find(m => m.id === state.sslMode));
+    }));
     $$(".lc-faq .feature-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
   }
   if (r === "flashcards") {

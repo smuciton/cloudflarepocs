@@ -446,22 +446,70 @@ const LEARNING = {
       related: ["proxy", "anycast"]
     },
     {
-      id: "sslmodes", cat: "dnstls", icon: "🔒", title: "Modos SSL/TLS", level: "intermedio", mins: 6, scene: "sslmodes",
-      tldr: "Una conexión por Cloudflare tiene <b>dos tramos</b>: navegador ↔ Cloudflare y Cloudflare ↔ origen. El modo SSL/TLS decide cómo se cifra el segundo: <b>Off</b> (nada), <b>Flexible</b> (solo el primero), <b>Full</b> (los dos, sin validar certificado) y <b>Full (strict)</b> (los dos, validando el certificado). El recomendado es <b>Full (strict)</b>.",
-      how: "Como reverse proxy, Cloudflare <b>termina TLS</b> en el edge: descifra para poder aplicar WAF y caché, y luego abre otra conexión hacia tu origen. En <b>Flexible</b> esa segunda conexión va en HTTP, en texto claro. En <b>Full</b> va cifrada, pero Cloudflare acepta cualquier certificado (autofirmado, vencido o de otro dominio), así que alguien en medio podría hacerse pasar por tu origen. En <b>Full (strict)</b> el certificado debe ser válido (de una CA pública o un Origin Certificate gratuito de Cloudflare); si no, Cloudflare responde <b>526</b>.",
-      compare: { head: ["Modo", "Navegador ↔ Cloudflare", "Cloudflare ↔ origen", "Valida el cert del origen"], rows: [
+      id: "sslmodes", cat: "dnstls", icon: "🔒", title: "Modos de encriptación SSL/TLS", level: "intermedio", mins: 7,
+      tldr: "El <b>modo de encriptación</b> de tu zona controla <b>dos conexiones</b>: visitante ↔ Cloudflare y Cloudflare ↔ origen, y si Cloudflare <b>valida el certificado</b> de tu origen. Por defecto se usa <b>Automatic SSL/TLS</b>, que aplica el modo más seguro que soporta tu servidor. Si lo configuras a mano, Cloudflare recomienda <b>Full</b> o, mejor aún, <b>Full (strict)</b>.",
+      how: "Como reverse proxy, Cloudflare está en medio de cada petición, así que hay dos conexiones y pueden intervenir dos certificados: el <b>edge certificate</b> (visitante ↔ Cloudflare), que Cloudflare emite gratis con Universal SSL, y el <b>origin certificate</b> (Cloudflare ↔ tu servidor). El modo decide si la conexión 2 va en HTTP o HTTPS y si ese certificado del origen se valida. En la API el ajuste se llama <code>ssl</code> y sus valores son <code>off</code>, <code>flexible</code>, <code>full</code>, <code>strict</code> y <code>origin_pull</code>; para aplicarlo solo a ciertos hostnames se usa una <b>configuration rule</b>.",
+      modes: [
+        { id: "auto", name: "Automatic SSL/TLS", badge: "recomendado · default", leg1: "https", leg2: "auto",
+          desc: "Cloudflare escanea tu origen y aplica el modo más seguro que tu servidor soporta. Las mejoras se aplican de forma gradual.",
+          used: "Cualquier sitio. Es el valor por defecto y nunca cambia a un modo menos seguro.",
+          note: ["info", "El SSL/TLS Recommender visita tu sitio por HTTP y HTTPS (user agent Cloudflare-SSLDetector), compara el contenido y sube de modo empezando con el 1% del tráfico y en pasos de 10%. Si falla la conexión al origen, revierte de inmediato."] },
+        { id: "origin_pull", name: "Strict (SSL-Only Origin Pull)", api: "origin_pull", leg1: "any", leg2: "valid",
+          desc: "Siempre cifra entre Cloudflare y tu origen (HTTPS), aunque la petición del visitante no esté cifrada (HTTP). Acepta certificados de Cloudflare Origin CA o de una CA de confianza.",
+          used: "Orígenes que solo deben recibir HTTPS con certificado válido, sin importar cómo llegue el visitante.",
+          note: ["ok", "La conexión al origen siempre va cifrada y validada, incluso si el visitante entró por HTTP."] },
+        { id: "strict", name: "Full (strict)", api: "strict", leg1: "https", leg2: "valid",
+          desc: "Cifra entre Cloudflare y tu origen si la petición usa HTTPS, y valida el certificado: debe ser de Cloudflare Origin CA o de una CA de confianza (ej. Let's Encrypt).",
+          used: "Orígenes con un certificado válido: de una CA pública o un Origin Certificate gratuito de Cloudflare.",
+          note: ["ok", "Nadie puede hacerse pasar por tu origen: si el certificado no es válido, vencido o de otro hostname, Cloudflare no se conecta y responde 526."] },
+        { id: "full", name: "Full", api: "full", leg1: "https", leg2: "novalid",
+          desc: "Cifra entre Cloudflare y tu origen si la petición usa HTTPS. No valida el certificado: acepta cualquiera, incluido uno autofirmado.",
+          used: "Orígenes con certificados autofirmados o inválidos.",
+          note: ["warn", "Un atacante puede suplantar tu origen e interceptar el tráfico: va cifrado, pero lo puede aceptar otro servidor."] },
+        { id: "flexible", name: "Flexible", api: "flexible", leg1: "https", leg2: "http",
+          desc: "Cifra entre tus visitantes y Cloudflare si la petición usa HTTPS. No cifra entre Cloudflare y tu origen.",
+          used: "Orígenes que no soportan TLS. Cloudflare recomienda mejorar el origen en cuanto sea posible.",
+          note: ["warn", "El visitante ve el candado, pero el tramo a tu origen viaja en texto claro. Si tu origen redirige HTTP → HTTPS, se forma un loop de redirecciones."] },
+        { id: "off", name: "Off (no seguro)", api: "off", leg1: "http", leg2: "http",
+          desc: "No cifra el tráfico entre visitantes, Cloudflare ni tu origen. Todo va en HTTP en texto claro.",
+          used: "No se recomienda para ningún sitio en producción.",
+          note: ["bad", "Cualquiera en la red puede leer o modificar el tráfico, y los navegadores marcan el sitio como “No seguro”."] }
+      ],
+      compare: { head: ["Modo", "Visitante ↔ Cloudflare", "Cloudflare ↔ origen", "Valida el cert del origen"], rows: [
         ["Off", "🔓 HTTP", "🔓 HTTP", "—"],
-        ["Flexible", "🔒 HTTPS", "🔓 HTTP", "—"],
-        ["Full", "🔒 HTTPS", "🔒 HTTPS", "❌ No (acepta autofirmado)"],
-        ["Full (strict)", "🔒 HTTPS", "🔒 HTTPS", "✅ Sí (CA pública u Origin CA)"]
+        ["Flexible", "🔒 HTTPS (o HTTP)", "🔓 HTTP", "—"],
+        ["Full", "🔒 HTTPS (o HTTP)", "Mismo protocolo que el visitante", "❌ No (acepta autofirmado)"],
+        ["Full (strict)", "🔒 HTTPS (o HTTP)", "Mismo protocolo que el visitante", "✅ Sí (CA pública u Origin CA)"],
+        ["Strict (SSL-Only Origin Pull)", "🔒 HTTPS o HTTP", "🔒 Siempre HTTPS", "✅ Sí"],
+        ["Automatic SSL/TLS", "🔒 HTTPS", "El más seguro que soporte tu origen", "Según el modo aplicado"]
       ]},
+      extras: {
+        title: "🔐 Certificados y funciones de SSL/TLS",
+        intro: "SSL/TLS está disponible en todos los planes. Estas son las piezas que complementan al modo de encriptación:",
+        items: [
+          { icon: "🌐", name: "Edge certificate", desc: "Cifra visitante ↔ Cloudflare. Cloudflare lo emite y renueva gratis con <b>Universal SSL</b>." },
+          { icon: "🖥️", name: "Origin certificate", desc: "Cifra Cloudflare ↔ tu servidor. Puede ser de una CA pública o un <b>Origin CA</b> gratuito de Cloudflare; es lo que valida Full (strict)." },
+          { icon: "🌳", name: "Total TLS", desc: "Universal SSL cubre el apex y el primer nivel de subdominios. Total TLS emite certificados automáticamente para hostnames proxied en <b>cualquier nivel</b> (ej. <code>api.dev.ejemplo.com</code>)." },
+          { icon: "🪪", name: "Delegated DCV", desc: "Antes de emitir un certificado, la CA verifica que controlas el dominio. Si tu DNS no está en Cloudflare, delegas esa validación para que las <b>renovaciones sean automáticas</b>." },
+          { icon: "⚙️", name: "Custom TLS settings", desc: "Define la <b>versión mínima de TLS</b> que deben usar los visitantes y <b>restringe los cipher suites</b> para cumplir requisitos de compliance (ej. PCI)." },
+          { icon: "🏷️", name: "Cloudflare for SaaS", desc: "Extiende SSL/TLS y la seguridad de Cloudflare a los <b>dominios propios de tus clientes</b> (custom o vanity domains)." }
+        ]
+      },
       cf: [
-        { label: "🔒 SSL/TLS", route: "application-security/ssl" }, { label: "🔌 API Shield (mTLS)", route: "application-security/api" }
+        { label: "🔒 SSL/TLS", route: "application-security/ssl" }, { label: "🔌 API Shield (mTLS)", route: "application-security/api" },
+        { label: "🗂 Cloudflare DNS", route: "network-services/cloudflare-dns" }
       ],
       faq: [
         { q: "Mi sitio entra en un loop de redirecciones al activar Flexible, ¿por qué?", a: "Tu origen redirige HTTP → HTTPS, pero en Flexible Cloudflare siempre le habla en HTTP, así que la redirección se repite sin fin (ERR_TOO_MANY_REDIRECTS). La solución es instalar un certificado en el origen y usar Full (strict)." },
-        { q: "No tengo certificado en mi servidor, ¿cómo llego a Full (strict)?", a: "Genera un <b>Origin Certificate</b> gratuito en el dashboard de Cloudflare (válido hasta 15 años), instálalo en el servidor y cambia el modo a Full (strict)." },
-        { q: "¿Qué significa el error 526?", a: "Que estás en Full (strict) y el certificado del origen no es válido: vencido, autofirmado o con otro hostname. Cloudflare prefiere no conectarse antes que hacerlo de forma insegura." }
+        { q: "No tengo certificado en mi servidor, ¿cómo llego a Full (strict)?", a: "Genera un <b>Origin Certificate</b> gratuito en el dashboard de Cloudflare, instálalo en el servidor y cambia el modo a Full (strict). Es un certificado en el que solo confía Cloudflare, ideal para la conexión 2." },
+        { q: "¿Qué significa el error 526?", a: "Que estás en Full (strict) y el certificado del origen no es válido: vencido, autofirmado o con otro hostname. Cloudflare prefiere no conectarse antes que hacerlo de forma insegura." },
+        { q: "Si mi certificado de origen vence, ¿Automatic SSL/TLS me baja a Full para que no se caiga?", a: "No. Automatic SSL/TLS <b>nunca cambia a un modo menos seguro</b>: si estás en Full (strict) y el certificado vence, sigue en Full (strict). Mantener válido el certificado del origen es tu responsabilidad." },
+        { q: "¿Cuál es la diferencia entre Full (strict) y Strict (SSL-Only Origin Pull)?", a: "En Full (strict) Cloudflare usa el mismo protocolo que el visitante: si entró por HTTP, va al origen por HTTP. En <b>Strict (SSL-Only Origin Pull)</b> siempre va por HTTPS validado al origen, aunque el visitante haya entrado por HTTP." },
+        { q: "¿Puedo usar un modo distinto para un solo subdominio?", a: "Sí, con una <b>configuration rule</b> puedes cambiar el modo de encriptación para hostnames específicos en lugar de toda la zona." }
+      ],
+      source: [
+        { label: "Cloudflare Docs · Encryption modes", url: "https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/" },
+        { label: "Cloudflare Docs · SSL/TLS", url: "https://developers.cloudflare.com/ssl/" }
       ],
       related: ["proxy", "dnsproxy"]
     }
