@@ -9,7 +9,11 @@ const SCENES = {
   managed: mountManagedScene,
   owasp: mountOwaspScene,
   wafoverview: mountWafOverviewScene,
-  wafpipeline: mountWafPipelineScene
+  wafpipeline: mountWafPipelineScene,
+  proxy: mountProxyScene,
+  anycast: mountAnycastScene,
+  dnsproxy: mountDnsProxyScene,
+  sslmodes: mountSslModesScene
 };
 
 function mountScene(name, root, title = "") {
@@ -60,7 +64,7 @@ function addSceneChrome(root, scene, title) {
   overlay.className = "scene-start";
   overlay.innerHTML = `
     <button class="btn btn-primary" data-chrome="startfull">▶ Iniciar simulación</button>
-    <span class="scene-start-hint">Se abre en pantalla completa con controles y Security Events en vivo</span>`;
+    <span class="scene-start-hint">${esc(root.dataset.hint || "Se abre en pantalla completa con controles y Security Events en vivo")}</span>`;
   stage.appendChild(overlay);
 
   // Contadores + Security Events en un panel lateral (columna derecha en la vista ampliada)
@@ -2158,4 +2162,647 @@ function mountWafPipelineScene(root) {
   });
 
   return runScene(root, kit, { reset, tick });
+}
+
+// ── Learning Center: escenas didácticas ─────────────────────────────────────
+const lcPillW = s => Math.max(40, Math.round(18 + s.replace(/[^\x20-\x7E]/g, "").length * 5.4 + (/[^\x20-\x7E]/.test(s) ? 14 : 0)));
+const pathLen = pts => pts.slice(1).reduce((a, p, i) => a + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0);
+
+// Escena por ciclos: events() devuelve [segundo, fn] del modo actual; al terminar el ciclo se repite.
+// send() admite next(t) para encadenar el siguiente tramo cuando el paquete llega.
+function cycleScene(root, kit, { events, onReset = () => {}, onCycle = () => {}, onTick = () => {} }) {
+  const S = { t: 0, c0: 0, ei: 0, k: 0, packets: [] };
+  const api = {
+    S,
+    send(cls, label, path, next, speed = 260) {
+      const g = kit.pill(cls, label, lcPillW(label));
+      kit.place(g, path[0]);
+      S.packets.push({ g, path, next, t0: S.t, dur: Math.max(0.25, pathLen(path) / speed) });
+    },
+    restart() {
+      S.packets.forEach(p => p.g.remove());
+      Object.assign(S, { c0: S.t, ei: 0, k: S.k + 1, packets: [] });
+      onCycle();
+    },
+    key: s => `${S.k}-${s}`
+  };
+  const reset = () => { S.t = 0; S.k = 0; onReset(); api.restart(); };
+  const tick = t => {
+    S.t = t;
+    const ev = events();
+    while (S.ei < ev.length && t - S.c0 >= ev[S.ei][0]) ev[S.ei++][1](t);
+    if (ev.length && S.ei >= ev.length) api.restart();
+    onTick(t);
+    S.packets = kit.move(S.packets, t, p => { kit.drop(p); p.next?.(t); });
+  };
+  api.run = () => runScene(root, kit, { reset, tick });
+  return api;
+}
+
+const nodeText = (kit, id, { icon, label, sub }) => {
+  const g = kit.q(`[data-did="${id}"]`);
+  if (icon != null) g.querySelector(".d-icon").textContent = icon;
+  if (label != null) g.querySelector(".d-nlabel:not(.sm)").textContent = label;
+  if (sub != null) g.querySelector(".d-nlabel.sm").textContent = sub;
+  return g;
+};
+
+// ── Concepto: Reverse vs Forward Proxy ──────────────────────────────────────
+function mountProxyScene(root) {
+  const IN = [[128, 180], [250, 180]], THRU = [[250, 180], [530, 180], [652, 180]];
+  const BACK = [[652, 204], [530, 204], [250, 204], [128, 204]], BOUNCE = [[250, 204], [128, 204]];
+  const MODES = {
+    forward: {
+      role: ["🧭 Forward proxy · Gateway (SWG)", "Representa al CLIENTE: filtra lo que piden"],
+      left: { icon: "👩‍💼", label: "Empleada", sub: "10.0.0.25 · laptop con WARP" },
+      right: { icon: "🌐", label: "Sitios de Internet", sub: "SaaS · web pública" },
+      wl: ["desde 10.0.0.25", "desde 104.28.15.7"],
+      sees: ["El sitio ve:  104.28.15.7 (Cloudflare)", "No ve:  10.0.0.25 ni tu red interna"],
+      protects: "🛡 PROTEGE A TUS USUARIOS",
+      reqs: [
+        { label: "GET google.com", ok: true, who: "10.0.0.25", what: "google.com", res: "200 · el sitio vio 104.28.15.7" },
+        { label: "GET phish-login.xyz", ok: false, who: "10.0.0.25", what: "phish-login.xyz", res: "block · Gateway: categoría Phishing",
+          why: ["⛔ Gateway bloquea el phishing", "La empleada hizo clic en un enlace de phishing. El forward proxy revisa el destino <b>antes</b> de salir a Internet y lo bloquea por categoría: la petición nunca llega al sitio falso."] }
+      ]
+    },
+    reverse: {
+      role: ["🛡 Reverse proxy · Cloudflare", "Representa al SERVIDOR: recibe lo que entra"],
+      left: { icon: "🧑", label: "Visitante", sub: "189.203.4.10" },
+      right: { icon: "🖥️", label: "Tu origen", sub: "203.0.113.10 · oculto" },
+      wl: ["→ 104.16.132.229", "desde 172.68.20.5"],
+      sees: ["El visitante ve:  104.16.132.229 (CF)", "No ve:  203.0.113.10 (tu origen)"],
+      protects: "🛡 PROTEGE A TU SERVIDOR",
+      reqs: [
+        { label: "GET /productos", ok: true, who: "189.203.4.10", what: "GET /productos", res: "200 · el origen vio 172.68.20.5" },
+        { label: "GET /?id=1' OR 1=1", ok: false, who: "185.220.101.4", what: "GET /?id=1' OR 1=1", res: "403 · WAF: SQLi", atk: true,
+          why: ["⛔ El reverse proxy detiene el ataque", "Un atacante manda un SQLi. Como todo el tráfico entra por Cloudflare, el WAF lo bloquea en el edge con <b>403</b> y tu origen ni se entera."] }
+      ]
+    }
+  };
+  const cfg = { mode: "reverse", auto: true };
+  const svg = sceneFrame({
+    edge: [250, 44, 280, 300], title: "Cloudflare",
+    outer: `
+      ${wireLine("lane vis", IN)}${wireLine("out", THRU.slice(1))}${wireLine("lane", BACK)}
+      <text class="rl-wlabel usr lc-wl0" x="189" y="168" text-anchor="middle"></text>
+      <text class="rl-wlabel lc-wl1" x="591" y="168" text-anchor="middle"></text>
+      ${iconBox({ id: "lc-l", x: 100, y: 192, icon: "", label: "", sub: " ", cls: "good" })}
+      ${iconBox({ id: "lc-r", x: 680, y: 192, icon: "", label: "", sub: " ", cls: "good" })}`,
+    inner: `
+      <g class="sc-card lc-role"><rect x="264" y="82" width="252" height="46" rx="8"/>
+        <text class="rl-rule-t lc-role-t" x="276" y="100"></text>
+        <text class="sc-mono lc-role-s" x="276" y="117"></text></g>
+      <text class="sc-label" x="264" y="172">PETICIÓN →</text>
+      <text class="sc-label" x="516" y="222" text-anchor="end">← RESPUESTA</text>
+      <g class="sc-card lc-sees"><rect x="264" y="234" width="252" height="50" rx="8"/>
+        <text class="sc-insp-l" x="276" y="249">👁 QUÉ VE CADA LADO</text>
+        <text class="sc-mono lc-see0" x="276" y="263"></text>
+        <text class="sc-mono lc-see1" x="276" y="277"></text></g>
+      <g class="rl-status ok lc-protects"><rect x="270" y="298" width="240" height="22" rx="11"/><text x="390" y="313" text-anchor="middle"></text></g>`
+  });
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Tipo de proxy</span>
+      <button class="btn btn-sm" data-pmode="forward">🧭 Forward proxy</button>
+      <button class="btn btn-sm" data-pmode="reverse">🛡 Reverse proxy</button>
+      <label class="sc-check"><input type="checkbox" data-auto checked> Alternar automáticamente</label></div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="n">0</b><span>Peticiones</span></div>
+    <div class="rl-stat block"><b data-out="blocked">0</b><span>Bloqueadas por el proxy</span></div>
+    <div class="rl-stat pass"><b data-out="ok">0</b><span>Llegaron al destino</span></div></div>`;
+  const kit = sceneKit(root, { svg, controls, stats, consoleTitle: "Eventos del proxy · en vivo" });
+  const C = { n: 0, blocked: 0, ok: 0 };
+  const role = kit.q(".lc-role"), rightNode = () => kit.q('[data-did="lc-r"]');
+  const sync = () => {
+    const m = MODES[cfg.mode];
+    kit.segment("data-pmode", cfg.mode);
+    kit.q("[data-auto]").checked = cfg.auto;
+    kit.q(".lc-role-t").textContent = m.role[0];
+    kit.q(".lc-role-s").textContent = m.role[1];
+    nodeText(kit, "lc-l", m.left);
+    nodeText(kit, "lc-r", m.right);
+    kit.q(".lc-wl0").textContent = m.wl[0];
+    kit.q(".lc-wl1").textContent = m.wl[1];
+    kit.q(".lc-see0").textContent = m.sees[0];
+    kit.q(".lc-see1").textContent = m.sees[1];
+    kit.q(".lc-protects text").textContent = m.protects;
+  };
+  const req = () => MODES[cfg.mode].reqs[(cyc.S.k - 1) % 2];
+  const count = k => { C[k]++; kit.out(k, C[k]); };
+  const events = () => [
+    [0.05, () => {
+      const r = req(), m = MODES[cfg.mode];
+      nodeText(kit, "lc-l", r.atk ? { icon: "💀", label: "Atacante", sub: r.who } : m.left);
+      count("n");
+      cyc.send(r.atk ? "bad" : "neutral", r.label, IN);
+      kit.caption(cyc.key("a"), `${r.atk ? "💀 Un atacante" : cfg.mode === "forward" ? "👩‍💼 La empleada" : "🧑 Un visitante"} envía ${esc(r.label)}`,
+        cfg.mode === "forward"
+          ? "Su laptop manda todo el tráfico web a Cloudflare Gateway (con el cliente WARP o un PAC file), no directo a Internet."
+          : "El DNS de tu dominio apunta a Cloudflare, así que la conexión llega al edge, no a tu servidor.");
+    }],
+    [0.6, () => {
+      kit.flash(role, "hl", 700);
+      kit.caption(cyc.key("b"), "🔁 El proxy termina la conexión y la evalúa",
+        "Un proxy no reenvía a ciegas: recibe la petición completa, aplica sus políticas y, si la deja pasar, abre <b>su propia conexión</b> hacia el otro lado con <b>su propia IP</b>.");
+    }],
+    [1.2, () => {
+      const r = req();
+      if (!r.ok) {
+        kit.impact(IN[1]);
+        kit.flash(role, "flash", 900);
+        count("blocked");
+        cyc.send("bad", r.atk ? "⛔ 403" : "⛔ bloqueado", BOUNCE);
+        kit.caption(cyc.key("c"), r.why[0], r.why[1]);
+        kit.logReq(r.who, r.what, r.res, "bad");
+        return;
+      }
+      cyc.send("good", cfg.mode === "forward" ? "src 104.28.15.7" : "src 172.68.20.5", THRU, () => {
+        const g = rightNode();
+        g.animate?.([{ transform: "translateY(-3px)" }, { transform: "none" }], { duration: 300 });
+        count("ok");
+        kit.caption(cyc.key("d"), cfg.mode === "forward" ? "🌐 El sitio recibe la petición… desde Cloudflare" : "🖥️ Tu origen recibe la petición… desde Cloudflare",
+          cfg.mode === "forward"
+            ? "Google ve la IP de egreso de Cloudflare (<code>104.28.15.7</code>), no la de la empleada ni tu red interna. El proxy <b>oculta al cliente</b>."
+            : "Tu servidor ve una IP de Cloudflare; la IP real del visitante viaja en el header <code>CF-Connecting-IP</code>. Y el visitante nunca supo la IP de tu origen: el proxy <b>oculta al servidor</b>.");
+        cyc.send("good", "200 OK", BACK);
+        kit.logReq(r.who, r.what, r.res, "ok");
+      });
+    }],
+    [5.4, () => {
+      if (cfg.auto && cyc.S.k % 2 === 0) cfg.mode = cfg.mode === "forward" ? "reverse" : "forward";
+    }]
+  ];
+  const cyc = cycleScene(root, kit, {
+    events,
+    onReset: () => {
+      Object.assign(cfg, { mode: "reverse", auto: true });
+      Object.keys(C).forEach(k => { C[k] = 0; kit.out(k, 0); });
+      kit.log("Escuchando conexiones del proxy…", "hint");
+    },
+    onCycle: sync
+  });
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-pmode]");
+    if (!b) return;
+    cfg.mode = b.dataset.pmode;
+    cfg.auto = false;
+    cyc.S.k = 0;
+    cyc.restart();
+  });
+  kit.q("[data-auto]").addEventListener("change", e => { cfg.auto = e.target.checked; });
+  return cyc.run();
+}
+
+// ── Concepto: Anycast + CDN ─────────────────────────────────────────────────
+function mountAnycastScene(root) {
+  const POPS = [
+    { id: "MEX", x: 170, y: 250 }, { id: "DFW", x: 230, y: 150 }, { id: "MIA", x: 360, y: 205 },
+    { id: "GRU", x: 450, y: 318 }, { id: "MAD", x: 640, y: 150 }
+  ];
+  const USERS = [
+    { city: "CDMX", x: 78, y: 304 }, { city: "Dallas", x: 140, y: 96 }, { city: "Bogotá", x: 300, y: 300 },
+    { city: "São Paulo", x: 566, y: 342 }, { city: "Madrid", x: 726, y: 236 }
+  ];
+  const ORIGIN = { x: 430, y: 84 };
+  const cfg = { mode: "anycast", mexOff: false };
+  // Latencia ≈ 3 RTT (handshake TCP + TLS + petición) hasta donde termina la conexión;
+  // con anycast termina en el PoP y el PoP reusa una conexión abierta al origen (1 RTT extra en MISS)
+  const rtt = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) * 0.1;
+  const ms = (a, b) => Math.round(3 * rtt(a, b));
+  const nearest = u => POPS.filter(p => !(cfg.mexOff && p.id === "MEX")).reduce((a, p) => (Math.hypot(p.x - u.x, p.y - u.y) < Math.hypot(a.x - u.x, a.y - u.y) ? p : a));
+  const P = o => [o.x, o.y];
+
+  const svg = `<svg class="scene-svg" viewBox="0 0 780 380" xmlns="${SVG_NS}">
+    <rect class="d-bg" x="0" y="0" width="780" height="380" rx="14"/>
+    <rect class="d-inet" x="10" y="26" width="762" height="344" rx="14"/>
+    <text class="d-inetlabel" x="42" y="19">☁ Internet · BGP</text>
+    <g class="lc-ipbox"><rect x="24" y="36" width="300" height="34" rx="8"/>
+      <text class="lc-ip-t" x="36" y="51"></text><text class="sc-mono lc-ip-s" x="36" y="64"></text></g>
+    <g class="lc-routes">${USERS.map((u, i) => `<line class="lc-route" data-u="${i}" x1="${u.x}" y1="${u.y}" x2="${u.x}" y2="${u.y}"/>`).join("")}</g>
+    <g class="lc-origin"><rect x="${ORIGIN.x - 62}" y="${ORIGIN.y - 26}" width="124" height="52" rx="10"/>
+      <text class="d-cust-t" x="${ORIGIN.x}" y="${ORIGIN.y - 8}" text-anchor="middle">🖥️ Tu origen</text>
+      <text class="d-cust-s" x="${ORIGIN.x}" y="${ORIGIN.y + 6}" text-anchor="middle">Virginia · us-east</text>
+      <text class="d-cust-s lc-origin-n" x="${ORIGIN.x}" y="${ORIGIN.y + 19}" text-anchor="middle">0 peticiones</text></g>
+    ${POPS.map(p => `<g class="lc-pop" data-pop="${p.id}">
+      <circle class="lc-pop-halo" cx="${p.x}" cy="${p.y}" r="20"/>
+      <circle class="lc-pop-dot" cx="${p.x}" cy="${p.y}" r="13"/>
+      <text class="lc-pop-t" x="${p.x}" y="${p.y + 3.5}" text-anchor="middle">${p.id}</text>
+      <text class="lc-pop-c" x="${p.x}" y="${p.y + 30}" text-anchor="middle"></text></g>`).join("")}
+    ${USERS.map(u => `<g class="lc-user"><text x="${u.x}" y="${u.y + 6}" text-anchor="middle" font-size="18">🧑</text>
+      <text class="d-nlabel sm" x="${u.x}" y="${u.y + 22}" text-anchor="middle">${u.city}</text></g>`).join("")}
+    <g class="sc-layer"></g>
+  </svg>`;
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Enrutamiento</span>
+      <button class="btn btn-sm" data-amode="anycast">📡 Anycast</button>
+      <button class="btn btn-sm" data-amode="unicast">📍 Unicast</button>
+      <button class="btn btn-sm" data-mex>⛔ Apagar PoP MEX</button>
+      <button class="btn btn-sm" data-purge>🧹 Purgar caché</button></div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="n">0</b><span>Peticiones</span></div>
+    <div class="rl-stat good"><b data-out="hit">0%</b><span>Cache HIT</span></div>
+    <div class="rl-stat pass"><b data-out="lat">—</b><span>Latencia prom.</span></div>
+    <div class="rl-stat block"><b data-out="origin">0</b><span>Al origen</span></div></div>`;
+  const kit = sceneKit(root, { svg, controls, stats, consoleTitle: "Peticiones por PoP · en vivo" });
+  const popEl = Object.fromEntries(kit.qa(".lc-pop").map(g => [g.dataset.pop, g]));
+  const S = { n: 0, hits: 0, lat: 0, origin: 0, cache: new Set(), next: 0.3, order: [] };
+
+  const sync = () => {
+    const any = cfg.mode === "anycast";
+    kit.segment("data-amode", cfg.mode);
+    kit.q("[data-mex]").classList.toggle("on", cfg.mexOff);
+    kit.q("[data-mex]").textContent = cfg.mexOff ? "✅ Encender PoP MEX" : "⛔ Apagar PoP MEX";
+    kit.q(".lc-ip-t").textContent = any ? "IP 104.16.132.229 · anycast" : "IP 203.0.113.10 · unicast";
+    kit.q(".lc-ip-s").textContent = any ? "anunciada por BGP desde TODOS los PoPs" : "existe solo en un lugar: Virginia";
+    root.querySelector(".scene-svg").classList.toggle("lc-unicast", !any);
+    POPS.forEach(p => {
+      const off = cfg.mexOff && p.id === "MEX";
+      popEl[p.id].classList.toggle("off", off || !any);
+      popEl[p.id].classList.toggle("cached", any && S.cache.has(p.id) && !off);
+      popEl[p.id].querySelector(".lc-pop-c").textContent = off && any ? "ruta retirada" : any && S.cache.has(p.id) ? "caché ✓" : "";
+    });
+    kit.qa(".lc-route").forEach((l, i) => {
+      const t = any ? nearest(USERS[i]) : ORIGIN;
+      l.setAttribute("x2", t.x);
+      l.setAttribute("y2", t.y);
+    });
+  };
+  const stat = () => {
+    kit.out("n", S.n);
+    kit.out("hit", `${S.n ? Math.round((S.hits / S.n) * 100) : 0}%`);
+    kit.out("lat", S.n ? `${Math.round(S.lat / S.n)} ms` : "—");
+    kit.out("origin", S.origin);
+    kit.q(".lc-origin-n").textContent = `${S.origin} peticiones`;
+  };
+  const done = (u, where, res, total, cls) => {
+    S.n++;
+    S.lat += total;
+    stat();
+    kit.logReq(u.city, where, `${res} · ${total} ms`, cls);
+  };
+  const hitOrigin = () => {
+    S.origin++;
+    stat();
+    kit.q(".lc-origin rect").animate?.([{ fill: "#BFDBFE" }, { fill: "#EFF6FF" }], { duration: 400 });
+  };
+  const request = () => {
+    if (!S.order.length) S.order = shuffle(USERS.slice());
+    const u = S.order.pop();
+    if (cfg.mode === "unicast") {
+      const total = ms(u, ORIGIN);
+      cyc.send("neutral", "GET", [P(u), P(ORIGIN)], () => {
+        hitOrigin();
+        cyc.send(total > 60 ? "warn" : "good", `${total} ms`, [P(ORIGIN), P(u)], () => {
+          done(u, "→ origen Virginia", "200", total, total > 60 ? "warn" : "ok");
+          kit.caption(`uni-${u.city}`, `📍 Unicast: ${u.city} viaja hasta Virginia`,
+            `La IP existe en un solo lugar, así que el handshake TCP + TLS y la petición recorren todo el camino: <b>${total} ms</b> para ${u.city}. Y cada petición carga a tu origen; un DDoS pegaría todo en este único punto.`);
+        });
+      });
+      return;
+    }
+    const pop = nearest(u), edge = ms(u, pop);
+    cyc.send("neutral", "GET", [P(u), P(pop)], () => {
+      if (S.cache.has(pop.id)) {
+        S.hits++;
+        kit.flash(popEl[pop.id], "hit", 500);
+        cyc.send("good", `HIT ${edge} ms`, [P(pop), P(u)], () => {
+          done(u, `→ PoP ${pop.id}`, "HIT", edge, "ok");
+          kit.caption(`hit-${pop.id}`, `⚡ HIT en ${pop.id}: respuesta en ${edge} ms`,
+            `${u.city} llegó a la IP <code>104.16.132.229</code> y BGP lo llevó al PoP más cercano, <b>${pop.id}</b>. Ese PoP ya tenía el contenido en caché, así que respondió sin tocar tu origen.`);
+        });
+        return;
+      }
+      kit.flash(popEl[pop.id], "miss", 500);
+      kit.caption(`miss-${pop.id}`, `🔄 MISS en ${pop.id}: primera vez que alguien lo pide aquí`,
+        `El PoP <b>${pop.id}</b> no tiene el contenido, así que lo pide a tu origen una vez, lo guarda en caché y lo entrega. Los siguientes usuarios de esa zona tendrán HIT.`);
+      const fetchMs = Math.round(rtt(pop, ORIGIN));
+      cyc.send("warn", "MISS", [P(pop), P(ORIGIN)], () => {
+        hitOrigin();
+        cyc.send("neutral", "200", [P(ORIGIN), P(pop)], () => {
+          S.cache.add(pop.id);
+          sync();
+          cyc.send("warn", `MISS ${edge + fetchMs} ms`, [P(pop), P(u)], () => done(u, `→ PoP ${pop.id}`, "MISS", edge + fetchMs, "warn"));
+        });
+      });
+    });
+  };
+  const cyc = cycleScene(root, kit, {
+    events: () => [],
+    onReset: () => {
+      Object.assign(cfg, { mode: "anycast", mexOff: false });
+      Object.assign(S, { n: 0, hits: 0, lat: 0, origin: 0, cache: new Set(), next: 0.3, order: [] });
+      stat();
+      kit.log("Escuchando peticiones en la red…", "hint");
+      kit.caption("intro", "📡 Una sola IP, cientos de lugares",
+        "Cinco usuarios en ciudades distintas piden el mismo sitio, a la misma IP. Mira a qué PoP llega cada uno y cómo la caché se va llenando.");
+      sync();
+    },
+    onTick: t => { if (t >= S.next) { S.next = t + 0.85; request(); } }
+  });
+  root.addEventListener("click", e => {
+    const m = e.target.closest("[data-amode]");
+    if (m) {
+      cfg.mode = m.dataset.amode;
+      S.cache.clear();
+      kit.caption(`mode-${cfg.mode}-${cyc.S.t}`, cfg.mode === "anycast" ? "📡 Anycast: la misma IP en todos los PoPs" : "📍 Unicast: la IP vive en un solo lugar",
+        cfg.mode === "anycast" ? "Cada usuario llega al PoP más cercano. Compara la latencia promedio y cuántas peticiones llegan a tu origen." : "Todos los usuarios viajan hasta Virginia. Observa cómo sube la latencia y cómo todo cae en tu origen.");
+    }
+    if (e.target.closest("[data-mex]")) {
+      cfg.mexOff = !cfg.mexOff;
+      kit.caption(`mex-${cyc.S.t}`, cfg.mexOff ? "⛔ El PoP MEX se apaga: BGP retira su ruta" : "✅ El PoP MEX vuelve: anuncia su ruta otra vez",
+        cfg.mexOff ? "Sin cambiar DNS ni IP, los usuarios de CDMX llegan solos al siguiente PoP más cercano (Dallas). Así es el failover con anycast: automático y en segundos." : "CDMX regresa a su PoP local y la latencia vuelve a bajar.");
+    }
+    if (e.target.closest("[data-purge]")) {
+      S.cache.clear();
+      kit.caption(`purge-${cyc.S.t}`, "🧹 Purge: la caché se vacía en toda la red",
+        "Publicaste un cambio y purgaste. Las siguientes peticiones de cada PoP serán MISS una vez, traerán la versión nueva y volverán a ser HIT.");
+    }
+    if (m || e.target.closest("[data-mex], [data-purge]")) sync();
+  });
+  return cyc.run();
+}
+
+// ── Concepto: DNS proxied vs DNS-only ───────────────────────────────────────
+function mountDnsProxyScene(root) {
+  const DNSQ = [[128, 110], [264, 106]], DNSA = [[264, 126], [128, 126]];
+  const P1 = [[128, 136], [264, 214]], P2 = [[526, 214], [662, 196]], R2 = [[662, 210], [526, 232]], R1 = [[264, 232], [128, 148]];
+  const DIRECT = [[128, 140], [178, 345], [604, 345], [682, 226]], DBACK = DIRECT.slice().reverse();
+  const A1 = [[128, 276], [264, 240]], AD = [[128, 290], [196, 345], [604, 345], [690, 226]];
+  const cfg = { mode: "proxied", auto: true };
+  const prox = () => cfg.mode === "proxied";
+  const svg = sceneFrame({
+    edge: [250, 44, 290, 280], title: "Cloudflare",
+    outer: `
+      ${wireLine("lane vis", [[128, 136], [250, 210]])}${wireLine("out", [[540, 205], [662, 196]])}
+      <polyline class="rl-wire lc-direct" fill="none" points="${DIRECT.map(p => p.join(",")).join(" ")}"/>
+      <text class="rl-wlabel lc-direct-l" x="390" y="362" text-anchor="middle">conexión directa a 203.0.113.10 · Cloudflare no la ve</text>
+      ${iconBox({ id: "lc-u", x: 100, y: 122, icon: "🧑", label: "Visitante", sub: "navegador", cls: "good" })}
+      ${iconBox({ id: "lc-a", x: 100, y: 278, icon: "💀", label: "Atacante", sub: "botnet", cls: "bad" })}
+      ${iconBox({ id: "lc-o", x: 690, y: 200, icon: "🖥️", label: "Tu origen", sub: "203.0.113.10", cls: "good" })}`,
+    inner: `
+      <g class="sc-card lc-dns"><rect x="264" y="82" width="262" height="56" rx="8"/>
+        <text class="rl-rule-t" x="276" y="99">🗂 Cloudflare DNS · registro A</text>
+        <text class="sc-mono lc-dns-r" x="276" y="115"></text>
+        <text class="sc-mono lc-dns-a" x="276" y="129"></text></g>
+      <g class="sc-card lc-sec"><rect x="264" y="190" width="262" height="56" rx="8"/>
+        <text class="rl-rule-t" x="276" y="207">🛡 WAF · ⚡ Caché · 🌊 DDoS</text>
+        <text class="sc-mono lc-sec-s" x="276" y="224"></text>
+        <text class="sc-pill-t lc-sec-p" x="514" y="206" text-anchor="end"></text></g>
+      <g class="rl-status ok lc-verdict"><rect x="275" y="290" width="240" height="22" rx="11"/><text x="395" y="305" text-anchor="middle"></text></g>`
+  });
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Registro DNS</span>
+      <button class="btn btn-sm" data-dmode="proxied">🟠 Proxied</button>
+      <button class="btn btn-sm" data-dmode="dnsonly">⚪ DNS-only</button>
+      <label class="sc-check"><input type="checkbox" data-auto checked> Alternar automáticamente</label></div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="dns">0</b><span>Consultas DNS</span></div>
+    <div class="rl-stat pass"><b data-out="origin">0</b><span>Visitas al origen</span></div>
+    <div class="rl-stat block"><b data-out="blocked">0</b><span>Ataques bloqueados</span></div>
+    <div class="rl-stat good"><b data-out="hitorigin">0</b><span>Ataques al origen</span></div></div>`;
+  const kit = sceneKit(root, { svg, controls, stats, consoleTitle: "DNS y tráfico · en vivo" });
+  const C = { dns: 0, origin: 0, blocked: 0, hitorigin: 0 };
+  const count = k => { C[k]++; kit.out(k, C[k]); };
+  const dnsCard = kit.q(".lc-dns"), secCard = kit.q(".lc-sec"), originEl = kit.q('[data-did="lc-o"]');
+  const verdict = (cls, t) => { kit.q(".lc-verdict").setAttribute("class", `rl-status lc-verdict ${cls}`); kit.q(".lc-verdict text").textContent = t; };
+  const sync = () => {
+    kit.segment("data-dmode", cfg.mode);
+    kit.q("[data-auto]").checked = cfg.auto;
+    kit.q(".lc-dns-r").textContent = `www  A  203.0.113.10   ${prox() ? "🟠 Proxied" : "⚪ DNS-only"}`;
+    kit.q(".lc-dns-a").textContent = prox() ? "responde → 104.16.132.229 (Cloudflare)" : "responde → 203.0.113.10 (tu IP real)";
+    secCard.classList.toggle("off", !prox());
+    kit.q(".lc-sec-s").textContent = prox() ? "inspecciona cada petición HTTP" : "no participa: el tráfico no pasa por aquí";
+    kit.q(".lc-sec-p").textContent = prox() ? "ACTIVO" : "SIN USO";
+    kit.q(".lc-sec-p").setAttribute("class", `sc-pill-t lc-sec-p ${prox() ? "on" : "off"}`);
+    root.querySelector(".scene-svg").classList.toggle("lc-dnsonly", !prox());
+    nodeText(kit, "lc-o", { sub: prox() ? "203.0.113.10 · oculta" : "203.0.113.10 · pública" });
+    verdict(prox() ? "ok" : "near", prox() ? "🟠 ORIGEN OCULTO DETRÁS DE CLOUDFLARE" : "⚪ ORIGEN EXPUESTO A INTERNET");
+  };
+  const originPulse = bad => originEl.querySelector("rect").animate?.([{ fill: bad ? "#FECACA" : "#BFDBFE" }, { fill: "#F1F5F9" }], { duration: 500 });
+  const events = () => [
+    [0.05, () => {
+      count("dns");
+      cyc.send("neutral", "¿www.ejemplo.com?", DNSQ);
+      kit.caption(cyc.key("a"), "1. El navegador pregunta: ¿cuál es la IP de www.ejemplo.com?", "Antes de conectarse, el navegador consulta el DNS. Cloudflare es el DNS autoritativo de tu dominio y responde.");
+    }],
+    [0.65, () => {
+      kit.flash(dnsCard, "hl", 700);
+      cyc.send(prox() ? "good" : "warn", prox() ? "A 104.16.132.229" : "A 203.0.113.10", DNSA);
+      kit.logReq("resolver", "www.ejemplo.com A?", prox() ? "→ 104.16.132.229 · proxied" : "⚠ → 203.0.113.10 · IP real expuesto", prox() ? "ok" : "warn");
+      kit.caption(cyc.key("b"), prox() ? "🟠 Proxied: responde con una IP de Cloudflare" : "⚪ DNS-only: responde con la IP real de tu origen",
+        prox() ? "El registro tiene la nube naranja: el mundo solo conoce <code>104.16.132.229</code>, una IP anycast de Cloudflare. Tu IP real queda oculta."
+          : "El registro tiene la nube gris: Cloudflare solo resuelve el nombre y entrega <code>203.0.113.10</code>. Ahora cualquiera sabe dónde está tu servidor.");
+    }],
+    [1.5, () => {
+      if (prox()) {
+        cyc.send("neutral", "GET /", P1, () => {
+          kit.flash(secCard, "pass", 700);
+          cyc.send("good", "GET /", P2, () => {
+            originPulse(false);
+            count("origin");
+            cyc.send("good", "200", R2, () => cyc.send("good", "200", R1));
+            kit.logReq("visitante", "GET / vía Cloudflare", "200 → origen", "ok");
+            kit.caption(cyc.key("c"), "2. El tráfico pasa por Cloudflare antes de llegar a tu origen",
+              "Como la IP era de Cloudflare, la conexión llega al edge: WAF, caché y DDoS revisan la petición y Cloudflare abre su propia conexión a tu origen (reverse proxy).");
+          });
+        });
+      } else {
+        cyc.send("warn", "GET /", DIRECT, () => {
+          originPulse(false);
+          count("origin");
+          cyc.send("warn", "200", DBACK, null, 420);
+          kit.logReq("visitante", "GET / directo a 203.0.113.10", "200 · ⚠ sin Cloudflare", "warn");
+          kit.caption(cyc.key("c"), "2. El tráfico va directo, sin pasar por Cloudflare",
+            "El navegador se conecta a tu IP real. Sin WAF, sin caché y sin protección DDoS: Cloudflare ni siquiera ve esta conexión.");
+        }, 420);
+      }
+    }],
+    [4.4, () => {
+      if (prox()) {
+        cyc.send("bad", "💀 flood + SQLi", A1, () => {
+          kit.impact(A1[1]);
+          kit.flash(secCard, "flash", 900);
+          count("blocked");
+          kit.logReq("botnet", "flood a 104.16.132.229", "bloqueado · DDoS / WAF", "bad");
+          kit.caption(cyc.key("d"), "3. El atacante solo puede apuntar a Cloudflare",
+            "No conoce tu IP real, así que su ataque llega al edge, donde se absorbe y se bloquea. <b>Ojo:</b> si tu IP se filtra (un subdominio en gris, el MX, historial de DNS), permite solo IPs de Cloudflare en tu firewall o usa Cloudflare Tunnel.");
+        });
+      } else {
+        cyc.send("bad", "💀 flood ×10k", AD, () => {
+          originPulse(true);
+          count("hitorigin");
+          kit.float("⚠ saturado", [690, 160], "bad");
+          kit.logReq("botnet", "flood a 203.0.113.10", "⚠ llegó al origen · sin protección", "warn");
+          kit.caption(cyc.key("d"), "3. El atacante pega directo a tu servidor",
+            "Con la IP real en el DNS, el ataque va directo al origen y Cloudflare no puede hacer nada: no está en el camino. Usa DNS-only solo para lo que no es HTTP (correo, SSH, VPN).");
+        }, 420);
+      }
+    }],
+    [7.4, () => { if (cfg.auto) cfg.mode = prox() ? "dnsonly" : "proxied"; }]
+  ];
+  const cyc = cycleScene(root, kit, {
+    events,
+    onReset: () => {
+      Object.assign(cfg, { mode: "proxied", auto: true });
+      Object.keys(C).forEach(k => { C[k] = 0; kit.out(k, 0); });
+      kit.log("Escuchando consultas DNS…", "hint");
+    },
+    onCycle: sync
+  });
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-dmode]");
+    if (!b) return;
+    cfg.mode = b.dataset.dmode;
+    cfg.auto = false;
+    cyc.restart();
+  });
+  kit.q("[data-auto]").addEventListener("change", e => { cfg.auto = e.target.checked; });
+  return cyc.run();
+}
+
+// ── Concepto: Modos SSL/TLS ─────────────────────────────────────────────────
+function mountSslModesScene(root) {
+  const L1 = [[118, 166], [300, 166]], L1B = [[300, 188], [118, 188]];
+  const L2 = [[490, 166], [662, 166]], L2B = [[662, 188], [490, 188]];
+  const TO_SPY = [[490, 176], [576, 262]];
+  const MODES = {
+    off: { name: "Off", leg1: false, leg2: false, strict: false, sub: "sin HTTPS" },
+    flexible: { name: "Flexible", leg1: true, leg2: false, strict: false, sub: "HTTPS solo hasta Cloudflare" },
+    full: { name: "Full", leg1: true, leg2: true, strict: false, sub: "HTTPS en ambos tramos · cert sin validar" },
+    strict: { name: "Full (strict)", leg1: true, leg2: true, strict: true, sub: "HTTPS en ambos tramos · cert validado" }
+  };
+  const ORDER = ["off", "flexible", "full", "strict"];
+  const cfg = { mode: "flexible", auto: true };
+  const M = () => MODES[cfg.mode];
+  const svg = sceneFrame({
+    edge: [300, 44, 190, 296], title: "Cloudflare",
+    outer: `
+      ${wireLine("lane lc-leg1", [[118, 176], [300, 176]])}${wireLine("lane lc-leg2", [[490, 176], [662, 176]])}
+      <text class="lc-lock lc-lock1" x="209" y="150" text-anchor="middle"></text>
+      <text class="lc-lock lc-lock2" x="576" y="150" text-anchor="middle"></text>
+      <text class="sc-label" x="209" y="134" text-anchor="middle">TRAMO 1 · NAVEGADOR ↔ CF</text>
+      <text class="sc-label" x="576" y="134" text-anchor="middle">TRAMO 2 · CF ↔ ORIGEN</text>
+      ${[[209, 1], [576, 2]].map(([x, i]) => `
+      <line class="lc-tap" x1="${x}" y1="196" x2="${x}" y2="254"/>
+      <g class="lc-spy" data-spy="${i}"><rect x="${x - 72}" y="254" width="144" height="46" rx="8"/>
+        <text x="${x}" y="272" text-anchor="middle" font-size="15">${i === 2 ? "🕵️ 😈" : "🕵️"}</text>
+        <text class="sc-mono lc-spy-t" x="${x}" y="290" text-anchor="middle"></text></g>`).join("")}
+      ${iconBox({ id: "lc-b", x: 90, y: 176, icon: "🌐", label: "Navegador", sub: " ", cls: "good" })}
+      ${iconBox({ id: "lc-o", x: 690, y: 176, icon: "🖥️", label: "Tu origen", sub: " ", cls: "good" })}`,
+    inner: `
+      <g class="sc-card lc-term"><rect x="312" y="82" width="166" height="62" rx="8"/>
+        <text class="rl-rule-t lc-term-t" x="322" y="99"></text>
+        <text class="sc-mono" x="322" y="115">descifra → WAF · caché</text>
+        <text class="sc-mono lc-term-s" x="322" y="130"></text></g>
+      <g class="rl-status ok lc-verdict"><rect x="310" y="306" width="170" height="22" rx="11"/><text x="395" y="321" text-anchor="middle"></text></g>`
+  });
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Modo SSL/TLS</span>
+      ${ORDER.map(m => `<button class="btn btn-sm" data-smode="${m}">${MODES[m].name}</button>`).join("")}
+      <label class="sc-check"><input type="checkbox" data-auto checked> Recorrer modos</label></div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="n">0</b><span>Logins enviados</span></div>
+    <div class="rl-stat pass"><b data-out="legs">—</b><span>Tramos cifrados</span></div>
+    <div class="rl-stat block"><b data-out="leaks">0</b><span>Contraseñas expuestas</span></div>
+    <div class="rl-stat good"><b data-out="mitm">0</b><span>MITM rechazados</span></div></div>`;
+  const kit = sceneKit(root, { svg, controls, stats, consoleTitle: "Handshakes TLS · en vivo" });
+  const C = { n: 0, leaks: 0, mitm: 0 };
+  const count = k => { C[k]++; kit.out(k, C[k]); };
+  const term = kit.q(".lc-term"), spy = i => kit.q(`[data-spy="${i}"]`);
+  const verdict = (cls, t) => { kit.q(".lc-verdict").setAttribute("class", `rl-status lc-verdict ${cls}`); kit.q(".lc-verdict text").textContent = t; };
+  const spySay = (i, txt, bad) => {
+    spy(i).classList.toggle("bad", !!bad);
+    spy(i).classList.toggle("safe", bad === false);
+    spy(i).querySelector(".lc-spy-t").textContent = txt;
+  };
+  const sync = () => {
+    const m = M();
+    kit.segment("data-smode", cfg.mode);
+    kit.q("[data-auto]").checked = cfg.auto;
+    kit.q(".lc-lock1").textContent = m.leg1 ? "🔒 HTTPS" : "🔓 HTTP · texto claro";
+    kit.q(".lc-lock2").textContent = m.leg2 ? (m.strict ? "🔒 HTTPS · cert validado" : "🔒 HTTPS · cert sin validar") : "🔓 HTTP · texto claro";
+    kit.q(".lc-lock1").setAttribute("class", `lc-lock lc-lock1 ${m.leg1 ? "ok" : "bad"}`);
+    kit.q(".lc-lock2").setAttribute("class", `lc-lock lc-lock2 ${m.leg2 ? (m.strict ? "ok" : "warn") : "bad"}`);
+    kit.q(".lc-term-t").textContent = `Modo: ${m.name}`;
+    kit.q(".lc-term-s").textContent = m.leg2 ? "re-cifra hacia el origen" : "al origen: HTTP sin cifrar";
+    nodeText(kit, "lc-b", { sub: m.leg1 ? "https://ejemplo.com 🔒" : "http://ejemplo.com" });
+    nodeText(kit, "lc-o", { sub: m.strict ? "cert Origin CA ✓" : m.leg2 ? "cert autofirmado" : "puerto 80 · HTTP" });
+    kit.out("legs", `${+m.leg1 + +m.leg2} / 2`);
+    spySay(1, "escuchando…");
+    spySay(2, "escuchando…");
+    verdict("ok", m.name.toUpperCase());
+  };
+  const payload = enc => (enc ? "🔒 ••••••••" : "📄 pass=hunter2");
+  const events = () => [
+    [0.05, () => {
+      count("n");
+      cyc.send(M().leg1 ? "good" : "warn", payload(M().leg1), L1);
+      kit.caption(cyc.key("a"), `🔐 Modo ${M().name}: el usuario inicia sesión`, `El navegador envía <code>usuario + contraseña</code>. ${M().sub[0].toUpperCase() + M().sub.slice(1)}.`);
+    }],
+    [0.55, () => {
+      if (M().leg1) spySay(1, "solo ve bytes cifrados", false);
+      else { spySay(1, "lee: pass=hunter2", true); count("leaks"); }
+      kit.logReq("navegador → CF", "POST /login", M().leg1 ? "TLS 1.3 · cifrado" : "⚠ HTTP · contraseña en claro", M().leg1 ? "ok" : "warn");
+    }],
+    [0.9, () => {
+      kit.flash(term, "hl", 800);
+      kit.caption(cyc.key("b"), "🔁 Cloudflare termina TLS en el edge",
+        `Descifra la petición para poder aplicar WAF y caché. Ahora abre otra conexión hacia tu origen: ${M().leg2 ? "<b>cifrada</b> con HTTPS." : "en <b>HTTP</b>, sin cifrar."}`);
+    }],
+    [1.3, () => cyc.send(M().leg2 ? "good" : "warn", payload(M().leg2), L2, () => {
+      kit.q('[data-did="lc-o"] rect').animate?.([{ fill: "#BFDBFE" }, { fill: "#F1F5F9" }], { duration: 400 });
+      cyc.send("good", "200", L2B, () => cyc.send("good", "200", L1B));
+    })],
+    [1.75, () => {
+      if (M().leg2) spySay(2, "solo ve bytes cifrados", false);
+      else {
+        spySay(2, "lee: pass=hunter2", true);
+        count("leaks");
+        kit.caption(cyc.key("c"), "⚠ El tramo a tu origen viaja en texto claro",
+          `El usuario ve el candado 🔒 en su navegador, pero entre Cloudflare y tu servidor la contraseña va legible. ${cfg.mode === "flexible" ? "Flexible <b>parece</b> seguro, y no lo es de punta a punta." : "Sin HTTPS, cualquiera en la red puede leerla."}`);
+      }
+      kit.logReq("CF → origen", "POST /login", M().leg2 ? `TLS · ${M().strict ? "cert validado" : "cert NO validado"}` : "⚠ HTTP · contraseña en claro", M().leg2 ? "ok" : "warn");
+    }],
+    [3.6, () => {
+      const m = M();
+      if (!m.leg2) {
+        kit.caption(cyc.key("d"), "😈 Ni siquiera necesita hacerse pasar por tu origen", "Si el tramo 2 va en HTTP, basta con escuchar la red. Instala un certificado en el origen (un Origin Certificate gratuito sirve) y sube a <b>Full (strict)</b>.");
+        return;
+      }
+      spySay(2, "😈 presenta cert falso", true);
+      kit.caption(cyc.key("d"), "😈 Alguien en medio se hace pasar por tu origen", "Presenta un certificado autofirmado a Cloudflare. ¿Cloudflare lo acepta?");
+      if (m.strict) {
+        kit.impact([548, 176]);
+        count("mitm");
+        verdict("ok", "⛔ 526 · CERT RECHAZADO");
+        spySay(2, "⛔ rechazado · 526", false);
+        kit.logReq("CF → origen?", "cert autofirmado", "526 · certificado inválido, conexión rechazada", "bad");
+        kit.caption(cyc.key("e"), "✅ Full (strict) valida el certificado y rechaza al impostor",
+          "El certificado no lo firma una CA pública ni Cloudflare Origin CA, así que Cloudflare no se conecta y responde <b>526</b>. La contraseña nunca llega al atacante.");
+      } else {
+        cyc.send("warn", "🔒 → 😈", TO_SPY, () => {
+          count("leaks");
+          spySay(2, "lee: pass=hunter2 (MITM)", true);
+          verdict("near", "⚠ ACEPTÓ CERT FALSO");
+          kit.logReq("CF → origen?", "cert autofirmado", "⚠ Full aceptó el cert · MITM posible", "warn");
+          kit.caption(cyc.key("e"), "⚠ Full cifra, pero no valida quién está del otro lado",
+            "Acepta cualquier certificado, incluido el del impostor: la conexión está cifrada… con el atacante. Por eso el recomendado es <b>Full (strict)</b>.");
+        });
+      }
+    }],
+    [6.6, () => { if (cfg.auto) cfg.mode = ORDER[(ORDER.indexOf(cfg.mode) + 1) % ORDER.length]; }]
+  ];
+  const cyc = cycleScene(root, kit, {
+    events,
+    onReset: () => {
+      Object.assign(cfg, { mode: "flexible", auto: true });
+      Object.keys(C).forEach(k => { C[k] = 0; kit.out(k, 0); });
+      kit.log("Escuchando handshakes TLS…", "hint");
+    },
+    onCycle: sync
+  });
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-smode]");
+    if (!b) return;
+    cfg.mode = b.dataset.smode;
+    cfg.auto = false;
+    cyc.restart();
+  });
+  kit.q("[data-auto]").addEventListener("change", e => { cfg.auto = e.target.checked; });
+  return cyc.run();
 }

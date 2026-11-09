@@ -60,6 +60,11 @@ function renderSidebar() {
           <span class="dot" style="background:${q.color};box-shadow:0 0 8px ${q.color}"></span>${q.label}
         </a>`).join("")}
     </nav>
+    <div class="side-label">Learning Center</div>
+    <nav>
+      ${LEARNING.concepts.map(c => `
+        <a class="nav-link lc-nav" href="#/learning/${c.id}" data-route="learning/${c.id}"><span class="lc-nav-ic">${c.icon}</span>${c.title}</a>`).join("")}
+    </nav>
     <div class="side-label">Hands-On App Security</div>
     <div id="sections">
       ${PRODUCTS.map(p => `
@@ -116,6 +121,7 @@ function paletteItems() {
   const items = [
     ...PRODUCTS.map(p => ({ label: `${p.num} ${p.name}`, hint: p.tagline, type: "producto", go: `${APPSEC}/${p.id}` })),
     ...SOON_PORTFOLIOS.flatMap(s => s.items.map(i => ({ label: i.name, hint: s.title, type: "en progreso", go: `${s.slug}/${i.slug}` }))),
+    ...LEARNING.concepts.map(c => ({ label: `${c.icon} ${c.title}`, hint: c.tldr.replace(/<[^>]+>/g, ""), type: "concepto", go: `learning/${c.id}` })),
     ...LABS.map(l => ({ label: l.title, hint: l.goal, type: "lab", go: `labs/${l.id}` })),
     ...FLASHCARDS.map(f => ({ label: f.q, hint: f.a.slice(0, 60) + "…", type: "flashcard", go: "flashcards" })),
     { label: "Practice Quiz", hint: "Preguntas estilo examen", type: "quiz", go: "quiz" },
@@ -612,6 +618,69 @@ function buildClientInto(svg, spec) {
   }
 }
 
+// ── Learning Center ─────────────────────────────────────────────────────────
+const levelChip = c => `<span class="lc-level ${c.level === "básico" ? "basic" : "mid"}">${c.level === "básico" ? "🟢" : "🟠"} ${c.level}</span>`;
+const conceptsFor = route => LEARNING.concepts.filter(c => c.cf.some(x => x.route === route));
+
+function viewLearning() {
+  return `
+    <h2 class="page-title">📘 Learning Center</h2>
+    <p class="page-sub">Los conceptos técnicos que necesitas dominar para explicar el portafolio: cómo funciona Internet por debajo y dónde encaja Cloudflare.</p>
+    ${LEARNING.cats.map(cat => {
+      const list = LEARNING.concepts.filter(c => c.cat === cat.id);
+      return `
+      <div class="section-title">${cat.icon} ${cat.title}${cat.soon ? ` <span class="soon-pill" style="margin-left:8px">próximamente</span>` : ""}</div>
+      <p class="muted lc-cat-desc">${cat.desc}</p>
+      ${list.length ? `<div class="grid grid-2">${list.map(c => `
+        <div class="card clickable card-accent-top lc-card" style="--accent:#A78BFA" onclick="location.hash='#/learning/${c.id}'">
+          <div class="card-kicker" style="--accent:#A78BFA">${c.icon} Concepto</div>
+          <h3>${c.title}</h3>
+          <p>${c.tldr}</p>
+          <div class="meta-row">${levelChip(c)}<span>·</span><span>⏱ ${c.mins} min</span><span>·</span><span>▶ simulación en vivo</span></div>
+        </div>`).join("")}</div>` : `<div class="card soon-card lc-soon"><p class="muted">🚧 En construcción — nuevos conceptos próximamente.</p></div>`}`;
+    }).join("")}`;
+}
+
+function viewConcept(id) {
+  const c = LEARNING.concepts.find(x => x.id === id);
+  if (!c) return viewLearning();
+  const cat = LEARNING.cats.find(x => x.id === c.cat);
+  return `
+    <a class="muted" href="#/learning" style="text-decoration:none">← Learning Center</a>
+    <div class="product-page">
+      <div class="product-info">
+        <div class="card-kicker" style="--accent:#A78BFA">${cat.icon} ${cat.title} · Learning Center</div>
+        <h2 class="page-title">${c.icon} ${c.title}</h2>
+        <p class="page-sub lc-meta">${levelChip(c)} <span>⏱ ${c.mins} min de lectura</span></p>
+        <div class="lc-tldr"><strong>TL;DR</strong><p>${c.tldr}</p></div>
+        <h4 class="learn-h">Cómo funciona</h4>
+        <p class="muted">${c.how}</p>
+        <h4 class="learn-h">Comparación</h4>
+        <div class="lc-table-wrap"><table class="lc-table">
+          <thead><tr>${c.compare.head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
+          <tbody>${c.compare.rows.map(r => `<tr>${r.map((v, i) => i ? `<td>${v}</td>` : `<th>${v}</th>`).join("")}</tr>`).join("")}</tbody>
+        </table></div>
+        <h4 class="learn-h">🔗 Cómo lo usa Cloudflare</h4>
+        <div class="lc-chips">${c.cf.map(x => `<a class="lc-chip" href="#/${x.route}">${x.label}</a>`).join("")}</div>
+        <h4 class="learn-h">💬 Preguntas del cliente</h4>
+        <div class="features">${c.faq.map(f => `
+          <div class="feature-item lc-faq">
+            <button class="feature-head"><span class="feature-ic">❓</span><span class="feature-name">${f.q}</span><span class="chev">▶</span></button>
+            <div class="feature-body"><p class="feature-detail">${f.a}</p></div>
+          </div>`).join("")}</div>
+        <h4 class="learn-h">Ver también</h4>
+        <div class="lc-chips">${c.related.map(rid => LEARNING.concepts.find(x => x.id === rid)).filter(Boolean)
+          .map(r => `<a class="lc-chip lc-chip-concept" href="#/learning/${r.id}">${r.icon} ${r.title}</a>`).join("")}</div>
+      </div>
+      <div class="product-diagram">
+        <div class="card" style="--accent:#A78BFA">
+          <div class="card-kicker">Diagrama interactivo</div>
+          <div class="scene-wrap" id="lc-scene" data-scene="${c.scene}" data-title="${c.title}" data-hint="Se abre en pantalla completa con controles y eventos en vivo"></div>
+        </div>
+      </div>
+    </div>`;
+}
+
 function viewSoonProducto(id) {
   const [r] = route();
   const pf = SOON_PORTFOLIOS.find(s => s.slug === r);
@@ -667,6 +736,9 @@ function viewProducto(id) {
             </div>
           </div>`).join("")}
         </div>` : ""}
+        ${conceptsFor(`${APPSEC}/${id}`).length ? `
+        <h4 class="learn-h">📘 Conceptos base</h4>
+        <div class="lc-chips">${conceptsFor(`${APPSEC}/${id}`).map(c => `<a class="lc-chip lc-chip-concept" href="#/learning/${c.id}">${c.icon} ${c.title}</a>`).join("")}</div>` : ""}
         ${L.analogy ? `<div class="analogy"><span class="analogy-icon">💡</span><div><strong>Piénsalo así</strong><p>${L.analogy}</p></div></div>` : ""}
         <h4 class="learn-h">Objetivos</h4>
         ${p.objectives.map(o => `<div class="objective" style="--accent:${p.accent}">${o}</div>`).join("")}
@@ -854,20 +926,21 @@ document.addEventListener("click", e => {
 // ── Render + event wiring ────────────────────────────────────────────────────
 function markActiveNav() {
   const [r] = route();
-  const navR = PORTFOLIOS[r] ? "portafolio" : r;
-  $$(".nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === navR));
+  const navR = PORTFOLIOS[r] ? "portafolio" : r, full = route().join("/");
+  $$(".nav-link").forEach(a => a.classList.toggle("active", a.dataset.route === navR || a.dataset.route === full));
 }
 
 function render() {
   let [r, arg] = route();
   if (r === "producto" && arg) { go(`${APPSEC}/${arg}`); return; } // compat rutas viejas
   const view = $("#view");
-  const views = { inicio: viewInicio, portafolio: viewPortafolio, flashcards: viewFlashcards, quiz: viewQuiz, labs: viewLabs, progreso: viewProgreso, pruebas: viewPruebas };
+  const views = { inicio: viewInicio, portafolio: viewPortafolio, learning: id => id ? viewConcept(id) : viewLearning(), flashcards: viewFlashcards, quiz: viewQuiz, labs: viewLabs, progreso: viewProgreso, pruebas: viewPruebas };
+  state.scene?.destroy();
+  state.scene = null;
   view.innerHTML = views[r] ? views[r](arg) : PORTFOLIOS[r] && arg ? viewProducto(arg) : viewInicio();
   markActiveNav();
   if (state.diagramTimer) { clearInterval(state.diagramTimer); state.diagramTimer = null; }
   wire(r, arg);
-  if (!$("#diagram-slot")) { state.scene?.destroy(); state.scene = null; }
   if (r === "portafolio" && arg) $("#p-" + arg)?.scrollIntoView({ behavior: "smooth", block: "start" });
   if (r === "labs" && arg) $("#" + arg)?.scrollIntoView({ behavior: "smooth", block: "start" });
   window.scrollTo({ top: 0 });
@@ -905,6 +978,11 @@ function wire(r, arg) {
       }
       renderDiagramSlot(arg);
     }));
+  }
+  if (r === "learning" && arg) {
+    const el = $("#lc-scene");
+    if (el) state.scene = mountScene(el.dataset.scene, el, el.dataset.title);
+    $$(".lc-faq .feature-head").forEach(h => h.addEventListener("click", () => h.parentElement.classList.toggle("open")));
   }
   if (r === "flashcards") {
     const flip = () => { state.flash.flipped = !state.flash.flipped; $("#flashcard").classList.toggle("flipped", state.flash.flipped); };

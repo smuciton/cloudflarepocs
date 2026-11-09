@@ -327,12 +327,117 @@ const CLOUD_MAP = {
 
 const NAV_TOP = [
   { id: "inicio", label: "Inicio", color: "#F6821F" },
-  { id: "portafolio", label: "Portafolio", color: "#00C2FF" }
+  { id: "portafolio", label: "Portafolio", color: "#00C2FF" },
+  { id: "learning", label: "Learning Center", color: "#A78BFA" }
 ];
 
 const NAV_EXTRA = [
   { id: "pruebas", label: "Pruebas de seguridad", color: "#35D07F" }
 ];
+
+// ── Learning Center: conceptos técnicos base (no son productos) ──────────────
+// cf: productos del portafolio donde aplica el concepto; las páginas de producto
+// muestran "Conceptos base" a partir de estas rutas.
+const LEARNING = {
+  cats: [
+    { id: "proxies", icon: "🔁", title: "Proxies", desc: "Quién habla en nombre de quién: el cliente, el servidor o un intermediario." },
+    { id: "edge", icon: "🌐", title: "Redes y edge", desc: "Cómo llega el tráfico a la red de Cloudflare y por qué es rápido." },
+    { id: "dnstls", icon: "🔐", title: "DNS y TLS", desc: "Cómo se resuelve tu dominio y cómo se cifra cada tramo de la conexión." },
+    { id: "websec", icon: "🛡️", title: "Seguridad web", desc: "Capas OSI, DDoS L3/L4 vs L7, OWASP Top 10.", soon: true },
+    { id: "zt", icon: "🧭", title: "Zero Trust", desc: "VPN vs ZTNA, SWG y cómo funciona un túnel.", soon: true }
+  ],
+  concepts: [
+    {
+      id: "proxy", cat: "proxies", icon: "🔁", title: "Reverse Proxy vs Forward Proxy", level: "básico", mins: 5, scene: "proxy",
+      tldr: "Los dos son intermediarios. El <b>forward proxy</b> representa a los <b>clientes</b> (tus empleados salen a Internet a través de él). El <b>reverse proxy</b> representa a los <b>servidores</b> (Internet entra a tu aplicación a través de él). Cloudflare es ambos.",
+      how: "Un proxy termina la conexión de un lado y abre una nueva del otro, así que puede inspeccionar, filtrar, cachear o bloquear lo que pasa. En el <b>forward proxy</b> el sitio de destino ve la IP del proxy, no la del empleado: protege y controla a los usuarios. En el <b>reverse proxy</b> el visitante solo ve la IP del proxy, nunca la de tu origen: protege y acelera a los servidores.",
+      compare: { head: ["", "Forward proxy", "Reverse proxy"], rows: [
+        ["Representa a", "Los clientes (usuarios, dispositivos)", "Los servidores (tu aplicación)"],
+        ["Dirección del tráfico", "Saliente · de tu red hacia Internet", "Entrante · de Internet hacia tu origen"],
+        ["Quién queda oculto", "La IP del usuario", "La IP del origen"],
+        ["Casos típicos", "Filtrar web, DLP, bloquear phishing, controlar SaaS", "WAF, CDN/caché, DDoS, balanceo, TLS"],
+        ["En Cloudflare", "Gateway (SWG) con WARP o PAC file", "La red de Cloudflare frente a tu sitio (nube naranja)"]
+      ]},
+      cf: [
+        { label: "🛡️ WAF", route: "application-security/waf" }, { label: "🌊 DDoS L7", route: "application-security/ddos" },
+        { label: "🤖 Bot Management", route: "application-security/bots" }, { label: "🔒 SSL/TLS", route: "application-security/ssl" },
+        { label: "🧭 Secure Web Gateway", route: "cloudflare-one/secure-web-gateway" }
+      ],
+      faq: [
+        { q: "Si Cloudflare es reverse proxy, ¿cómo sabe mi servidor la IP real del visitante?", a: "Cloudflare la envía en el header <code>CF-Connecting-IP</code> (y en <code>X-Forwarded-For</code>). Tu servidor o tus logs deben leer ese header en lugar de la IP de la conexión." },
+        { q: "¿Una VPN es un forward proxy?", a: "Se parecen: ambos sacan el tráfico del usuario por otro punto. La diferencia es que un SWG como Gateway inspecciona y aplica políticas por petición (categorías, DLP, malware); una VPN tradicional solo da acceso a la red." },
+        { q: "¿Mi origen sigue expuesto si alguien conoce su IP?", a: "Sí, el reverse proxy solo te protege si el tráfico pasa por él. Permite solo las IPs de Cloudflare en tu firewall o usa Cloudflare Tunnel para que el origen no acepte conexiones directas." }
+      ],
+      related: ["dnsproxy", "sslmodes"]
+    },
+    {
+      id: "anycast", cat: "edge", icon: "📡", title: "Anycast y CDN", level: "intermedio", mins: 6, scene: "anycast",
+      tldr: "Con <b>anycast</b>, la <b>misma IP</b> se anuncia desde todos los data centers de Cloudflare y cada usuario llega al más cercano. Ese PoP cercano guarda en <b>caché</b> tu contenido: la primera petición va a tu origen (MISS) y las siguientes se responden ahí mismo (HIT).",
+      how: "Cloudflare anuncia sus prefijos de IP por <b>BGP</b> desde más de 330 ciudades. Los routers de Internet eligen la ruta más corta, así que un usuario en CDMX llega al PoP de CDMX y uno en Madrid al de Madrid, aunque los dos usen la misma IP. Si un PoP se apaga, retira su anuncio y el tráfico se va solo al siguiente más cercano. Con <b>unicast</b>, en cambio, una IP vive en un solo lugar: todos viajan hasta ahí, y un ataque DDoS se concentra en ese único punto.",
+      compare: { head: ["", "Unicast", "Anycast"], rows: [
+        ["Una IP vive en", "Un solo servidor o data center", "Todos los PoPs a la vez"],
+        ["Latencia", "Depende de qué tan lejos estés", "Baja: llegas al PoP más cercano"],
+        ["Si falla el sitio", "Se cae el servicio (o failover manual por DNS)", "BGP redirige al siguiente PoP en segundos"],
+        ["Ante un DDoS", "Todo el ataque pega en un punto", "El ataque se reparte entre cientos de PoPs"],
+        ["Caché", "Sin caché cerca del usuario", "Cada PoP cachea y responde HIT localmente"]
+      ]},
+      cf: [
+        { label: "🌊 DDoS L7", route: "application-security/ddos" }, { label: "🛡️ WAF", route: "application-security/waf" },
+        { label: "🗂 Cloudflare DNS", route: "network-services/cloudflare-dns" }, { label: "🧱 Magic Transit", route: "network-services/magic-transit" },
+        { label: "⚖️ Load Balancing", route: "network-services/load-balancing" }
+      ],
+      faq: [
+        { q: "¿Anycast es lo mismo que Load Balancing?", a: "No. Anycast decide a <b>qué PoP de Cloudflare</b> llega el usuario. Load Balancing decide a <b>cuál de tus orígenes</b> manda Cloudflare la petición después. Se complementan." },
+        { q: "¿El PoP más cercano siempre es el más cercano geográficamente?", a: "Casi siempre, pero quien decide es BGP: es la ruta más corta en la red, que depende de los acuerdos de tu ISP. Por eso a veces un usuario sale por un PoP de otra ciudad." },
+        { q: "¿Qué pasa cuando cambio mi sitio y la caché tiene la versión vieja?", a: "La caché respeta el TTL (Cache-Control o Edge Cache TTL). Si necesitas el cambio ya, haces un <b>purge</b> por URL, tag, prefijo o todo, y se propaga a toda la red en segundos." }
+      ],
+      related: ["dnsproxy", "proxy"]
+    },
+    {
+      id: "dnsproxy", cat: "dnstls", icon: "🟠", title: "DNS proxied vs DNS-only", level: "básico", mins: 5, scene: "dnsproxy",
+      tldr: "La <b>nube naranja</b> (proxied) hace que tu dominio responda con IPs de Cloudflare: el tráfico pasa por WAF, caché y DDoS, y tu IP de origen queda oculta. La <b>nube gris</b> (DNS-only) responde con la IP real del origen: Cloudflare solo resuelve el nombre y el tráfico va directo, sin protección.",
+      how: "Cuando alguien busca <code>www.ejemplo.com</code>, Cloudflare DNS responde. Si el registro está <b>proxied 🟠</b>, devuelve una IP anycast de Cloudflare: la conexión llega al edge, que aplica tus reglas y luego abre su propia conexión a tu origen (reverse proxy). Si está en <b>DNS-only ⚪</b>, devuelve la IP real: Cloudflare ya no ve ese tráfico y cualquiera que conozca la IP puede atacar tu servidor directamente.",
+      compare: { head: ["", "⚪ DNS-only", "🟠 Proxied"], rows: [
+        ["La consulta DNS responde", "La IP real de tu origen", "Una IP anycast de Cloudflare"],
+        ["El tráfico pasa por Cloudflare", "No, va directo al origen", "Sí, por el edge"],
+        ["WAF, caché, DDoS L7, Bots", "No aplican", "Sí aplican"],
+        ["IP del origen", "Pública", "Oculta"],
+        ["Úsalo para", "MX, SSH, VPN, puertos no HTTP", "Sitios y APIs web (HTTP/HTTPS)"]
+      ]},
+      cf: [
+        { label: "🗂 Cloudflare DNS", route: "network-services/cloudflare-dns" }, { label: "🛡️ WAF", route: "application-security/waf" },
+        { label: "🌊 DDoS L7", route: "application-security/ddos" }, { label: "🤖 Bot Management", route: "application-security/bots" },
+        { label: "🚇 Cloudflare Tunnel", route: "network-services/cloudflare-tunnel" }
+      ],
+      faq: [
+        { q: "¿Por qué mi registro MX no se puede poner en naranja?", a: "El proxy de Cloudflare es para tráfico HTTP/HTTPS. El correo (SMTP) y otros protocolos no pasan por él, así que esos registros van en DNS-only. Para tráfico TCP/UDP arbitrario existe Spectrum." },
+        { q: "Ya puse la nube naranja, ¿mi origen está totalmente oculto?", a: "No siempre: la IP puede filtrarse por un subdominio en gris, un registro MX en el mismo servidor o el historial de DNS. Permite solo IPs de Cloudflare en el firewall del origen, o usa Cloudflare Tunnel." },
+        { q: "¿Proxied funciona en cualquier puerto?", a: "Solo en los puertos HTTP/HTTPS soportados (por ejemplo 80, 8080, 443, 8443 y algunos más). Otros puertos necesitan DNS-only o Spectrum." }
+      ],
+      related: ["proxy", "anycast"]
+    },
+    {
+      id: "sslmodes", cat: "dnstls", icon: "🔒", title: "Modos SSL/TLS", level: "intermedio", mins: 6, scene: "sslmodes",
+      tldr: "Una conexión por Cloudflare tiene <b>dos tramos</b>: navegador ↔ Cloudflare y Cloudflare ↔ origen. El modo SSL/TLS decide cómo se cifra el segundo: <b>Off</b> (nada), <b>Flexible</b> (solo el primero), <b>Full</b> (los dos, sin validar certificado) y <b>Full (strict)</b> (los dos, validando el certificado). El recomendado es <b>Full (strict)</b>.",
+      how: "Como reverse proxy, Cloudflare <b>termina TLS</b> en el edge: descifra para poder aplicar WAF y caché, y luego abre otra conexión hacia tu origen. En <b>Flexible</b> esa segunda conexión va en HTTP, en texto claro. En <b>Full</b> va cifrada, pero Cloudflare acepta cualquier certificado (autofirmado, vencido o de otro dominio), así que alguien en medio podría hacerse pasar por tu origen. En <b>Full (strict)</b> el certificado debe ser válido (de una CA pública o un Origin Certificate gratuito de Cloudflare); si no, Cloudflare responde <b>526</b>.",
+      compare: { head: ["Modo", "Navegador ↔ Cloudflare", "Cloudflare ↔ origen", "Valida el cert del origen"], rows: [
+        ["Off", "🔓 HTTP", "🔓 HTTP", "—"],
+        ["Flexible", "🔒 HTTPS", "🔓 HTTP", "—"],
+        ["Full", "🔒 HTTPS", "🔒 HTTPS", "❌ No (acepta autofirmado)"],
+        ["Full (strict)", "🔒 HTTPS", "🔒 HTTPS", "✅ Sí (CA pública u Origin CA)"]
+      ]},
+      cf: [
+        { label: "🔒 SSL/TLS", route: "application-security/ssl" }, { label: "🔌 API Shield (mTLS)", route: "application-security/api" }
+      ],
+      faq: [
+        { q: "Mi sitio entra en un loop de redirecciones al activar Flexible, ¿por qué?", a: "Tu origen redirige HTTP → HTTPS, pero en Flexible Cloudflare siempre le habla en HTTP, así que la redirección se repite sin fin (ERR_TOO_MANY_REDIRECTS). La solución es instalar un certificado en el origen y usar Full (strict)." },
+        { q: "No tengo certificado en mi servidor, ¿cómo llego a Full (strict)?", a: "Genera un <b>Origin Certificate</b> gratuito en el dashboard de Cloudflare (válido hasta 15 años), instálalo en el servidor y cambia el modo a Full (strict)." },
+        { q: "¿Qué significa el error 526?", a: "Que estás en Full (strict) y el certificado del origen no es válido: vencido, autofirmado o con otro hostname. Cloudflare prefiere no conectarse antes que hacerlo de forma insegura." }
+      ],
+      related: ["proxy", "dnsproxy"]
+    }
+  ]
+};
 
 const FLASHCARDS = [
   { product: "waf", q: "¿Qué significa un WAF Attack Score de 2?", a: "Tráfico casi seguramente malicioso. El score va de 1 a 99: 1–20 ataque, 21–50 probable ataque, 51–80 probable limpio, 81–99 limpio." },
