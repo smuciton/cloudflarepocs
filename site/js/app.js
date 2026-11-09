@@ -660,10 +660,14 @@ function viewProducto(id) {
             <div class="feature-body">
               <p class="feature-blurb">${f.blurb}</p>
               <p class="feature-detail">${f.detail}</p>
+              ${f.useCase ? `<div class="usecase"><strong>🧩 Caso de uso</strong>
+                <p><b>Situación del cliente:</b> ${f.useCase.problem}</p>
+                <p><b>Cómo lo resuelves:</b> ${f.useCase.fix}</p>
+                <p><b>Resultado:</b> ${f.useCase.result}</p></div>` : ""}
             </div>
           </div>`).join("")}
         </div>` : ""}
-        <div class="analogy"><span class="analogy-icon">💡</span><div><strong>Piénsalo así</strong><p>${L.analogy}</p></div></div>
+        ${L.analogy ? `<div class="analogy"><span class="analogy-icon">💡</span><div><strong>Piénsalo así</strong><p>${L.analogy}</p></div></div>` : ""}
         <h4 class="learn-h">Objetivos</h4>
         ${p.objectives.map(o => `<div class="objective" style="--accent:${p.accent}">${o}</div>`).join("")}
         <div class="pitch" style="--accent:${p.accent}">“${p.pitch}”</div>

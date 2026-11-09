@@ -814,6 +814,17 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .feature-item.open .feature-body { display: block; }
 .feature-blurb { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .feature-detail { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; }
+.usecase {
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(251, 173, 65, 0.07);
+  border: 1px solid rgba(251, 173, 65, 0.25);
+  border-left: 3px solid var(--amber);
+  border-radius: 8px;
+}
+.usecase strong { display: block; font-family: var(--font-display); color: var(--amber); font-size: 12px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.usecase p { font-size: 12.5px; color: var(--text-dim); line-height: 1.55; margin-top: 4px; }
+.usecase p b { color: var(--text); }
+.usecase code { font-size: 11.5px; overflow-wrap: anywhere; }
 
 /* ---------- Escena en vivo: Rate Limiting ---------- */
 .scene-wrap { position: relative; }

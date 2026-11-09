@@ -570,21 +570,40 @@ const LEARN = {
     features: [
       { icon: "🎯", name: "WAF Custom Rules", blurb: "Reglas a tu medida con expresiones sobre cualquier campo del request.",
         detail: "Escribes condiciones sobre IP, URI, método, headers, cookies, ASN, geografía, JA3/JA4, Bot Score o Attack Score — y aplicas acción: block, challenge (Turnstile/JS), skip o log. Ideal para cerrar endpoints por país, frenar scrapers por fingerprint o excluir tráfico interno.",
+        useCase: {
+          problem: "Tu panel <code>/wp-admin</code> solo lo usan empleados en México, pero en los logs ves miles de intentos de acceso desde otros países y desde redes de hosting.",
+          fix: "Una custom rule: <code>http.request.uri.path contains \"/wp-admin\" and ip.geoip.country ne \"MX\"</code> → <b>Block</b>. Para quien viaja, usa <b>Managed Challenge</b> en lugar de bloquear.",
+          result: "El panel deja de existir para el resto de Internet en minutos, sin tocar el servidor ni instalar plugins." },
         scene: "customrules" },
       { icon: "⏱️", name: "Rate Limiting Rules", blurb: "Cuenta peticiones por característica y actúa al superar el umbral.",
         detail: "Contadores por IP, sesión, ASN, header o fingerprint en ventanas configurables. Contra fuerza bruta en login, abuso de API y scraping: acciones block, managed challenge o log. Complexity-based counting frena bots que rotan IPs.",
+        useCase: {
+          problem: "Credential stuffing en <code>/login</code>: miles de intentos por hora con contraseñas filtradas, cuentas de clientes bloqueadas, tickets a soporte y picos de CPU en el origen.",
+          fix: "Una regla de rate limiting: más de <b>5 POST a <code>/login</code> por minuto</b> por IP (o por IP + JA4) → <b>Managed Challenge</b> durante 10 minutos.",
+          result: "Los usuarios reales entran sin fricción; los scripts se frenan en el edge y el origen deja de recibir la carga." },
         scene: "ratelimit" },
       { icon: "📤", name: "Response Rules", blurb: "Modifica en el edge la respuesta que recibe el cliente: headers del origen o la respuesta de bloqueo.",
         detail: "Dos usos comunes: endurecer las respuestas legítimas de tu origen (quitar headers que revelan tu stack como Server o X-Powered-By y agregar HSTS o X-Frame-Options) sin tocar el servidor, y personalizar la respuesta de bloqueo con tu marca en HTML o con JSON consistente para clientes de API.",
+        useCase: {
+          problem: "Un pentest o una auditoría PCI reporta que tu sitio expone <code>Server: Apache/2.4.49</code> y <code>X-Powered-By</code>, y que faltan HSTS y X-Frame-Options. Los servidores son legacy y cambiarlos tomaría semanas.",
+          fix: "Una response rule en el edge: <b>quitar</b> <code>Server</code> y <code>X-Powered-By</code>, y <b>agregar</b> <code>Strict-Transport-Security</code> y <code>X-Frame-Options: DENY</code> en todas las respuestas.",
+          result: "Cierras el hallazgo el mismo día para todos tus orígenes, sin cambiar la configuración de ningún servidor." },
         scene: "response" },
       { icon: "🛡️", name: "WAF Managed Ruleset", blurb: "Reglas escritas y mantenidas por Cloudflare contra exploits conocidos.",
         detail: "Mantenido por el equipo de seguridad de Cloudflare y actualizado ante cada nuevo exploit. Ejemplo real: con php2shell (CVE-2026-109618/109619, octubre 2026) Cloudflare desplegó las reglas ~9 horas antes de la divulgación pública, para todos los planes incluido Free, y sumó detección de transacción completa para bloquear respuestas del origen con datos filtrados.",
+        useCase: {
+          problem: "Se publica un CVE crítico de PHP (php2shell) un viernes en la noche. Tienes decenas de servidores PHP y aplicar el parche requiere una ventana de mantenimiento.",
+          fix: "Con el <b>Managed Ruleset</b> activo, Cloudflare despliega la regla por ti (en php2shell, antes de la divulgación pública). Tú solo confirmas los bloqueos en Security Events.",
+          result: "<b>Virtual patching</b>: estás protegido desde el primer momento y parchas con calma en tu siguiente ventana." },
         scene: "managed" },
       { icon: "📚", name: "WAF Core (OWASP) Ruleset", blurb: "La implementación Cloudflare del OWASP ModSecurity Core Rule Set.",
         detail: "El estándar de la industria contra el OWASP Top 10: cada regla aporta a un score de anomalía (paranoia levels) que tú calibras para balancear protección vs. falsos positivos. Excelente base antes de tus custom rules.",
+        useCase: {
+          problem: "Tienes una aplicación hecha por un proveedor o legacy, sin acceso al código, y un pentest encontró una inyección SQL en el buscador. La auditoría pide protección contra el OWASP Top 10.",
+          fix: "Activa el <b>OWASP Core Ruleset</b> en paranoia level PL1–PL2 y modo <b>Log</b> unos días, ajusta los falsos positivos y después cambia el umbral de anomalía a <b>Block</b>.",
+          result: "Cubres SQLi, XSS y el resto del OWASP Top 10, incluidas variantes ofuscadas sin firma, mientras el proveedor corrige el código." },
         scene: "owasp" }
     ],
-    analogy: "Es como un guardia en la puerta del club que conoce todas las tácticas de los intrusos: revisa a cada persona que intenta entrar y no deja pasar a nadie sospechoso — y lo hace en milisegundos, sin hacer fila.",
     how: "Cada petición HTTP/HTTPS pasa por el punto de presencia (PoP) de Cloudflare más cercano antes de tocar tu origen. Ahí el WAF la compara contra los Managed Rulesets (Cloudflare Managed + OWASP Core) y la puntúa con ML mediante el WAF Attack Score. Si coincide con un ataque, se bloquea en el edge: el origen ni se entera.",
     diagram: {
       type: "flow",
