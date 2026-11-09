@@ -655,6 +655,12 @@ function viewConcept(id) {
         <div class="lc-tldr"><strong>TL;DR</strong><p>${c.tldr}</p></div>
         <h4 class="learn-h">Cómo funciona</h4>
         <p class="muted">${c.how}</p>
+        ${c.ref ? `
+        <h4 class="learn-h">📋 Referencia rápida</h4>
+        <div class="lc-ref">${c.ref.map(g => `
+          <div class="lc-ref-g"><span class="lc-ref-l">${g.label}</span>
+            <div class="lc-ports">${g.items.map(i => `<span class="lc-port ${g.cls}">${i}</span>`).join("")}</div>
+            ${g.note ? `<p class="lc-ref-note">${g.note}</p>` : ""}</div>`).join("")}</div>` : ""}
         <h4 class="learn-h">Comparación</h4>
         <div class="lc-table-wrap"><table class="lc-table">
           <thead><tr>${c.compare.head.map(h => `<th>${h}</th>`).join("")}</tr></thead>
@@ -671,6 +677,7 @@ function viewConcept(id) {
         <h4 class="learn-h">Ver también</h4>
         <div class="lc-chips">${c.related.map(rid => LEARNING.concepts.find(x => x.id === rid)).filter(Boolean)
           .map(r => `<a class="lc-chip lc-chip-concept" href="#/learning/${r.id}">${r.icon} ${r.title}</a>`).join("")}</div>
+        ${c.source ? `<p class="lc-source">📄 Fuente: <a href="${c.source.url}" target="_blank" rel="noopener">${c.source.label} ↗</a></p>` : ""}
       </div>
       <div class="product-diagram">
         <div class="card" style="--accent:#A78BFA">

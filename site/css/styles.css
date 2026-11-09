@@ -1217,7 +1217,7 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .lc-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .lc-table th, .lc-table td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
 .lc-table thead th { font: 700 11px var(--font-display); letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); background: var(--bg-soft); }
-.lc-table tbody th { color: var(--text); font-weight: 600; white-space: nowrap; }
+.lc-table tbody th { color: var(--text); font-weight: 600; min-width: 92px; }
 .lc-table td { color: var(--text-dim); }
 .lc-table tr:last-child th, .lc-table tr:last-child td { border-bottom: none; }
 .lc-chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -1257,3 +1257,14 @@ td .mono { font-family: var(--font-mono); font-size: 12px; }
 .lc-spy.bad .lc-spy-t { fill: #B91C1C; font-weight: 700; }
 .lc-spy.safe rect { fill: #ECFDF5; stroke: #16A34A; }
 .lc-spy.safe .lc-spy-t { fill: #047857; }
+.lc-ref { display: grid; gap: 10px; }
+.lc-ref-g { padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--card); }
+.lc-ref-l { display: block; font: 700 11px var(--font-display); letter-spacing: 1px; text-transform: uppercase; color: var(--text-faint); margin-bottom: 6px; }
+.lc-ports { display: flex; flex-wrap: wrap; gap: 6px; }
+.lc-port { padding: 2px 9px; border-radius: 6px; font: 600 12px var(--font-mono); border: 1px solid var(--border); }
+.lc-port.http { color: #60A5FA; border-color: rgba(96, 165, 250, 0.4); background: rgba(96, 165, 250, 0.08); }
+.lc-port.https { color: var(--green); border-color: rgba(53, 208, 127, 0.4); background: rgba(53, 208, 127, 0.08); }
+.lc-port.nocache { color: var(--amber); border-color: rgba(251, 173, 65, 0.4); background: rgba(251, 173, 65, 0.08); }
+.lc-ref-note { margin-top: 6px; font-size: 12px; color: var(--text-dim); }
+.lc-source { margin-top: 18px; font-size: 12.5px; color: var(--text-faint); }
+.lc-source a { color: #A78BFA; }

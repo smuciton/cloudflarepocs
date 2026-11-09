@@ -394,6 +394,35 @@ const LEARNING = {
       related: ["dnsproxy", "proxy"]
     },
     {
+      id: "ports", cat: "edge", icon: "🔌", title: "Puertos de red compatibles", level: "básico", mins: 4, scene: "ports",
+      tldr: "El proxy de Cloudflare (nube naranja) solo atiende <b>13 puertos HTTP/HTTPS</b>: 80 y 443 más 11 alternos. En 10 de esos alternos <b>no hay caché</b> por defecto. Cualquier otro puerto (SSH 22, MySQL 3306…) no pasa por el proxy: va en <b>DNS-only</b> o con <b>Spectrum</b>.",
+      how: "Cuando un registro está proxied, Cloudflare escucha en su red anycast solo en los puertos HTTP y HTTPS soportados y reenvía ese tráfico a tu origen. En los puertos estándar (80, 443) y en 8080 aplica caché; en los alternos (2052, 2053, 2082, 2083, 2086, 2087, 2095, 2096, 8880, 8443) proxea pero <b>sin caché</b>, salvo que un cliente Enterprise la active con una cache rule. Para otros puertos tienes dos caminos: poner el subdominio en <b>gris</b> para que vaya directo al origen, o configurar <b>Spectrum</b>, que soporta todos los puertos (todos los puertos TCP/UDP solo en Enterprise). Si quieres aceptar únicamente 80 y 443, el Cloudflare Managed Ruleset tiene una regla para bloquear los demás.",
+      ref: [
+        { label: "HTTP soportados", cls: "http", items: ["80", "8080", "8880", "2052", "2082", "2086", "2095"] },
+        { label: "HTTPS soportados", cls: "https", items: ["443", "2053", "2083", "2087", "2096", "8443"] },
+        { label: "Soportados, pero sin caché", cls: "nocache", items: ["2052", "2053", "2082", "2083", "2086", "2087", "2095", "2096", "8880", "8443"],
+          note: "Enterprise puede activar la caché en estos puertos con una cache rule." }
+      ],
+      compare: { head: ["Puerto", "¿Pasa por el proxy?", "¿Caché?", "Qué hacer"], rows: [
+        ["80 · 443", "✅ Sí", "✅ Sí", "Lo ideal: puertos estándar"],
+        ["8080", "✅ Sí (HTTP)", "✅ Sí", "Funciona como el 80"],
+        ["10 alternos (ver arriba)", "✅ Sí", "❌ No (Enterprise: cache rule)", "Útil para paneles o APIs que no se cachean"],
+        ["Otros (22, 3306, 25…)", "❌ No", "—", "DNS-only (gris) o Spectrum: SSH, MySQL, SMTP…"]
+      ]},
+      cf: [
+        { label: "🛡️ WAF (regla de puertos)", route: "application-security/waf" }, { label: "🗂 Cloudflare DNS", route: "network-services/cloudflare-dns" },
+        { label: "🚇 Cloudflare Tunnel", route: "network-services/cloudflare-tunnel" }, { label: "🔐 Access / ZTNA", route: "cloudflare-one/access-ztna" }
+      ],
+      faq: [
+        { q: "Un escáner dice que la IP de Cloudflare tiene puertos abiertos que yo no uso, ¿es un riesgo?", a: "No es tu servidor: por la naturaleza de la red anycast, las IPs de Cloudflare son compartidas y atienden otros productos y clientes en esos puertos, así que herramientas como Netcat o los escáneres los ven abiertos. Ese tráfico no llega a tu origen. Para temas de compliance, revisa el Trust Hub de Cloudflare con tu account team." },
+        { q: "¿Cómo acepto solo 80 y 443 y bloqueo los demás puertos?", a: "En planes de pago, activa en el <b>Cloudflare Managed Ruleset</b> la regla <code>…664ed6fe</code> <i>Anomaly:Port - Non Standard Port (not 80 or 443)</i>, que viene desactivada por defecto. Bloquea en capa 7 las peticiones HTTP/HTTPS a puertos no estándar antes de que lleguen al origen." },
+        { q: "Tengo SSH en el puerto 22, ¿lo puedo poner detrás de Cloudflare?", a: "No con la nube naranja: el 22 no es un puerto HTTP. Puedes dejarlo en DNS-only (expuesto), usar <b>Spectrum</b> o, mejor para acceso de empleados, <b>Cloudflare Tunnel + Access</b>, que publica SSH sin abrir puertos en tu servidor." },
+        { q: "¿Hay casos donde solo funcionan 80 y 443?", a: "Sí: el tráfico HTTP/HTTPS en los data centers de China para dominios con China Network solo usa 80 y 443. Además, Cloudflare Access no soporta números de puerto en las URLs protegidas: los quita de la petición." }
+      ],
+      source: { label: "Cloudflare Docs · Network ports", url: "https://developers.cloudflare.com/fundamentals/reference/network-ports/" },
+      related: ["dnsproxy", "anycast"]
+    },
+    {
       id: "dnsproxy", cat: "dnstls", icon: "🟠", title: "DNS proxied vs DNS-only", level: "básico", mins: 5, scene: "dnsproxy",
       tldr: "La <b>nube naranja</b> (proxied) hace que tu dominio responda con IPs de Cloudflare: el tráfico pasa por WAF, caché y DDoS, y tu IP de origen queda oculta. La <b>nube gris</b> (DNS-only) responde con la IP real del origen: Cloudflare solo resuelve el nombre y el tráfico va directo, sin protección.",
       how: "Cuando alguien busca <code>www.ejemplo.com</code>, Cloudflare DNS responde. Si el registro está <b>proxied 🟠</b>, devuelve una IP anycast de Cloudflare: la conexión llega al edge, que aplica tus reglas y luego abre su propia conexión a tu origen (reverse proxy). Si está en <b>DNS-only ⚪</b>, devuelve la IP real: Cloudflare ya no ve ese tráfico y cualquiera que conozca la IP puede atacar tu servidor directamente.",

@@ -13,7 +13,8 @@ const SCENES = {
   proxy: mountProxyScene,
   anycast: mountAnycastScene,
   dnsproxy: mountDnsProxyScene,
-  sslmodes: mountSslModesScene
+  sslmodes: mountSslModesScene,
+  ports: mountPortsScene
 };
 
 function mountScene(name, root, title = "") {
@@ -2804,5 +2805,159 @@ function mountSslModesScene(root) {
     cyc.restart();
   });
   kit.q("[data-auto]").addEventListener("change", e => { cfg.auto = e.target.checked; });
+  return cyc.run();
+}
+
+// ── Concepto: Puertos de red compatibles con el proxy ───────────────────────
+// Fuente: https://developers.cloudflare.com/fundamentals/reference/network-ports/
+function mountPortsScene(root) {
+  const HTTP = [80, 8080, 8880, 2052, 2082, 2086, 2095], HTTPS = [443, 2053, 2083, 2087, 2096, 8443];
+  const CACHED = [80, 443, 8080];
+  const IN = [[128, 180], [250, 180]], THRU = [[250, 180], [540, 180], [662, 180]];
+  const BACK = [[662, 204], [540, 204], [250, 204], [128, 204]], BOUNCE = [[250, 204], [128, 204]], EDGEBACK = [[264, 204], [128, 204]];
+  const REQS = [
+    { port: 443, what: "GET /logo.png" }, { port: 8443, what: "GET /panel" }, { port: 22, what: "SSH" },
+    { port: 8080, what: "GET /" }, { port: 2083, what: "GET /cpanel" }, { port: 3306, what: "MySQL" }
+  ];
+  const cfg = { rule: false, spectrum: false };
+  const supported = p => HTTP.includes(p) || HTTPS.includes(p);
+  const proto = p => (HTTPS.includes(p) ? "HTTPS" : HTTP.includes(p) ? "HTTP" : "TCP");
+  const svg = sceneFrame({
+    edge: [250, 44, 290, 296], title: "Cloudflare",
+    outer: `
+      ${wireLine("lane vis", IN)}${wireLine("out", THRU.slice(1))}${wireLine("lane", BACK)}
+      <text class="rl-wlabel usr lc-pt-url" x="189" y="168" text-anchor="middle"></text>
+      ${iconBox({ id: "lc-c", x: 100, y: 192, icon: "🧑‍💻", label: "Cliente", sub: "ejemplo.com", cls: "good" })}
+      ${iconBox({ id: "lc-o", x: 690, y: 192, icon: "🖥️", label: "Tu origen", sub: "203.0.113.10", cls: "good" })}`,
+    inner: `
+      <g class="sc-card lc-pt-card"><rect x="264" y="82" width="262" height="72" rx="8"/>
+        <text class="rl-rule-t" x="276" y="99">🔌 Puertos que escucha el proxy</text>
+        <text class="sc-mono" x="276" y="115">HTTP  · 80 8080 8880 2052 2082 2086 2095</text>
+        <text class="sc-mono" x="276" y="129">HTTPS · 443 2053 2083 2087 2096 8443</text>
+        <text class="sc-mono lc-pt-st" x="276" y="146"></text></g>
+      <text class="sc-label" x="264" y="172">CONEXIÓN →</text>
+      <g class="sc-card lc-pt-cache"><rect x="264" y="222" width="127" height="44" rx="8"/>
+        <text class="rl-rule-t" x="274" y="239">⚡ Caché</text>
+        <text class="sc-mono lc-pt-cache-s" x="274" y="256"></text></g>
+      <g class="sc-card lc-pt-rule"><rect x="399" y="222" width="127" height="44" rx="8"/>
+        <text class="rl-rule-t" x="409" y="239">🛡 Regla …664ed6fe</text>
+        <text class="sc-mono lc-pt-rule-s" x="409" y="256"></text></g>
+      <g class="sc-card lc-pt-spec"><rect x="264" y="274" width="262" height="26" rx="8"/>
+        <text class="rl-rule-t" x="274" y="291">📡 Spectrum · todo TCP/UDP</text>
+        <text class="sc-pill-t lc-pt-spec-p" x="516" y="291" text-anchor="end"></text></g>
+      <g class="rl-status ok lc-verdict"><rect x="275" y="308" width="240" height="22" rx="11"/><text x="395" y="323" text-anchor="middle"></text></g>`
+  });
+  const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Configuración</span>
+      <button class="btn btn-sm" data-ptg="rule">🛡 Bloquear puertos no estándar</button>
+      <button class="btn btn-sm" data-ptg="spectrum">📡 Spectrum (Enterprise)</button></div>`;
+  const stats = `<div class="rl-stats">
+    <div class="rl-stat sent"><b data-out="n">0</b><span>Conexiones</span></div>
+    <div class="rl-stat pass"><b data-out="proxied">0</b><span>Pasaron por el proxy</span></div>
+    <div class="rl-stat good"><b data-out="hit">0</b><span>Respondidas desde caché</span></div>
+    <div class="rl-stat block"><b data-out="fail">0</b><span>Bloqueadas o fallidas</span></div></div>`;
+  const kit = sceneKit(root, { svg, controls, stats, consoleTitle: "Conexiones por puerto · en vivo" });
+  const C = { n: 0, proxied: 0, hit: 0, fail: 0 };
+  const count = k => { C[k]++; kit.out(k, C[k]); };
+  const card = s => kit.q(`.lc-pt-${s}`);
+  const verdict = (cls, t) => { kit.q(".lc-verdict").setAttribute("class", `rl-status lc-verdict ${cls}`); kit.q(".lc-verdict text").textContent = t; };
+  const req = () => REQS[(cyc.S.k - 1) % REQS.length];
+  const sync = () => {
+    kit.qa("[data-ptg]").forEach(b => b.classList.toggle("on", cfg[b.dataset.ptg]));
+    card("rule").classList.toggle("off", !cfg.rule);
+    kit.q(".lc-pt-rule-s").textContent = cfg.rule ? "solo 80 y 443" : "desactivada";
+    card("spec").classList.toggle("off", !cfg.spectrum);
+    kit.q(".lc-pt-spec-p").textContent = cfg.spectrum ? "ACTIVO" : "NO CONFIGURADO";
+    kit.q(".lc-pt-spec-p").setAttribute("class", `sc-pill-t lc-pt-spec-p ${cfg.spectrum ? "on" : "off"}`);
+    const r = req();
+    kit.q(".lc-pt-url").textContent = `ejemplo.com:${r.port}`;
+    kit.q(".lc-pt-st").textContent = "esperando conexión…";
+    kit.q(".lc-pt-cache-s").textContent = "—";
+    verdict("ok", `PUERTO ${r.port} · ${proto(r.port)}`);
+  };
+  const toOrigin = (r, label, res, cls) => cyc.send(cls === "ok" ? "good" : "neutral", label, THRU, () => {
+    kit.q('[data-did="lc-o"] rect').animate?.([{ fill: "#BFDBFE" }, { fill: "#F1F5F9" }], { duration: 400 });
+    cyc.send("good", "200", BACK);
+    kit.logReq(`:${r.port}`, r.what, res, cls);
+  });
+  const events = () => [
+    [0.05, () => {
+      const r = req();
+      count("n");
+      cyc.send("neutral", `:${r.port} ${r.what}`, IN);
+      kit.caption(cyc.key("a"), `🔌 Conexión a ejemplo.com:${r.port}`,
+        `El registro está en <b>nube naranja</b>, así que la conexión llega a la IP anycast de Cloudflare en el puerto <b>${r.port}</b>. ¿El proxy atiende ese puerto?`);
+    }],
+    [0.6, () => {
+      const r = req(), p = r.port;
+      kit.flash(card("card"), "hl", 700);
+      if (!supported(p)) {
+        kit.q(".lc-pt-st").textContent = `:${p} ✕ no es un puerto HTTP/HTTPS`;
+        if (cfg.spectrum) {
+          kit.flash(card("spec"), "hl", 900);
+          count("proxied");
+          verdict("ok", `📡 SPECTRUM · TCP :${p}`);
+          kit.caption(cyc.key("b"), `📡 Spectrum proxea el puerto ${p}`,
+            `El proxy HTTP no atiende el ${p}, pero una <b>aplicación de Spectrum</b> sí: Cloudflare recibe la conexión TCP en su red, la protege contra DDoS y la reenvía a tu origen. Todos los puertos TCP/UDP requieren plan Enterprise.`);
+          toOrigin(r, `TCP :${p}`, "Spectrum · TCP proxeado al origen", "ok");
+          return;
+        }
+        kit.impact(IN[1]);
+        count("fail");
+        verdict("near", `✕ :${p} NO SE PROXEA`);
+        cyc.send("bad", "✕ sin respuesta", BOUNCE);
+        kit.logReq(`:${p}`, r.what, "⚠ puerto no soportado por el proxy · conexión falla", "warn");
+        kit.caption(cyc.key("b"), `✕ El proxy no atiende el puerto ${p}`,
+          `${r.what} no es HTTP/HTTPS. Con nube naranja la conexión no llega a tu servidor. Opciones: poner ese subdominio en <b>DNS-only (gris)</b> para ir directo al origen, o configurar <b>Spectrum</b>.${p === 22 ? " Para acceso de empleados, mejor <b>Cloudflare Tunnel + Access</b>." : ""}`);
+        return;
+      }
+      const std = p === 80 || p === 443;
+      kit.q(".lc-pt-st").textContent = `:${p} ✓ ${proto(p)} soportado${CACHED.includes(p) ? "" : " · sin caché"}`;
+      if (cfg.rule && !std) {
+        kit.flash(card("rule"), "flash", 900);
+        kit.impact(IN[1]);
+        count("fail");
+        verdict("block", `⛔ 403 · PUERTO NO ESTÁNDAR`);
+        cyc.send("bad", "⛔ 403", BOUNCE);
+        kit.logReq(`:${p}`, r.what, "403 · Managed rule …664ed6fe (Non Standard Port)", "bad");
+        kit.caption(cyc.key("b"), `⛔ La regla de puertos bloquea el ${p}`,
+          "Activaste en el Cloudflare Managed Ruleset la regla <i>Anomaly:Port - Non Standard Port (not 80 or 443)</i>. Bloquea en capa 7 cualquier petición HTTP/HTTPS que no sea al 80 o al 443, antes de llegar a tu origen.");
+        return;
+      }
+      count("proxied");
+      if (CACHED.includes(p)) {
+        kit.flash(card("cache"), "pass", 800);
+        kit.q(".lc-pt-cache-s").textContent = "HIT ✓";
+        count("hit");
+        verdict("ok", `⚡ :${p} · HIT DESDE EL EDGE`);
+        cyc.send("good", "200 HIT", EDGEBACK);
+        kit.logReq(`:${p}`, r.what, "200 · proxied · cache HIT", "ok");
+        kit.caption(cyc.key("b"), `⚡ Puerto ${p}: proxy y caché`,
+          `El ${p} es un puerto ${p === 8080 ? "HTTP alterno, pero con caché como el 80" : "estándar"}: pasa por WAF y, como el recurso ya estaba en caché, Cloudflare responde desde el edge sin ir a tu origen.`);
+        return;
+      }
+      kit.q(".lc-pt-cache-s").textContent = "sin caché";
+      kit.flash(card("cache"), "hl", 800);
+      verdict("near", `:${p} · PROXIED SIN CACHÉ`);
+      kit.caption(cyc.key("b"), `🔁 Puerto ${p}: pasa por el proxy, pero sin caché`,
+        `El ${p} está soportado, así que tiene WAF y protección DDoS, pero en este puerto la caché está <b>desactivada</b> por defecto: cada petición va a tu origen. Un cliente Enterprise puede activarla con una <b>cache rule</b>.`);
+      toOrigin(r, `${proto(p)} :${p}`, "200 · proxied · sin caché (puerto alterno)", "ok");
+    }],
+    [4.3, () => {}]
+  ];
+  const cyc = cycleScene(root, kit, {
+    events,
+    onReset: () => {
+      Object.assign(cfg, { rule: false, spectrum: false });
+      Object.keys(C).forEach(k => { C[k] = 0; kit.out(k, 0); });
+      kit.log("Escuchando conexiones en el edge…", "hint");
+    },
+    onCycle: sync
+  });
+  root.addEventListener("click", e => {
+    const b = e.target.closest("[data-ptg]");
+    if (!b) return;
+    cfg[b.dataset.ptg] = !cfg[b.dataset.ptg];
+    sync();
+  });
   return cyc.run();
 }
