@@ -1945,8 +1945,16 @@ function mountWafPipelineScene(root) {
     owasp: ["📚 OWASP Core lo bloquea", "Un SQLi ofuscado sin firma exacta: las reglas OWASP suman <b>anomaly score</b> por encima del umbral y lo bloquean con <b>403</b>."],
     resp: ["📤 Response Rules limpia la respuesta", "El origen respondió <b>200</b> filtrando <code>Server: Apache/2.4.49</code>. En el edge se quita ese header y se agregan HSTS y X-Frame-Options antes de entregarla."]
   };
+  const INTRO = {
+    custom: ["🎯 Capa 1 habilitada: Custom Rules", "Tus propias reglas con la lógica de tu negocio: país, ruta, bot score, headers. Aquí: bloquear bots que entran a <code>/admin</code> desde fuera de MX. Mira la siguiente petición."],
+    rate: ["⏱️ Capa 2 habilitada: Rate Limiting", "Limita cuántas peticiones puede hacer una IP o sesión por minuto. Detiene fuerza bruta y abuso aunque cada petición, sola, parezca legítima. Mira la siguiente petición."],
+    managed: ["🛡️ Capa 3 habilitada: Managed Ruleset", "Firmas que mantiene y actualiza Cloudflare contra CVEs y exploits conocidos, como <b>php2shell</b>. Tú no escribes estas reglas: llegan solas. Mira la siguiente petición."],
+    owasp: ["📚 Capa 4 habilitada: OWASP Core", "Reglas OWASP CRS que suman un <b>anomaly score</b> y atrapan ataques genéricos u ofuscados (SQLi, XSS) que no tienen firma exacta. Mira la siguiente petición."],
+    resp: ["📤 Capa 5 habilitada: Response Rules", "Actúa sobre la <b>respuesta</b> del origen: quita headers que exponen tu stack y agrega headers de seguridad (HSTS, X-Frame-Options). Mira la siguiente petición."]
+  };
+  const ORDER = ["custom", "rate", "managed", "owasp", "resp"];
   const SPEED = 190;
-  const cfg = { on: { custom: true, rate: true, managed: true, owasp: true, resp: true } };
+  const cfg = { on: Object.fromEntries(ORDER.map(id => [id, false])) };
   const pillW = s => Math.round(18 + s.replace(/[^\x20-\x7E]/g, "").length * 5.4 + (/[^\x20-\x7E]/.test(s) ? 14 : 0));
   const gateBox = (g, y, n) => `
     <g class="sc-pgate" data-pg="${g.id}">
@@ -1974,7 +1982,9 @@ function mountWafPipelineScene(root) {
       <g class="rl-status ok sc-verdict"><rect x="270" y="306" width="260" height="22" rx="11"/><text x="400" y="321" text-anchor="middle"></text></g>`
   });
   const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Capas activas</span>
-    ${[...GATES, RESP].map(g => `<button class="btn btn-sm on" data-tg="${g.id}">${g.icon} ${g.short}</button>`).join("")}</div>`;
+    ${[...GATES, RESP].map(g => `<button class="btn btn-sm" data-tg="${g.id}">${g.icon} ${g.short}</button>`).join("")}
+    <button class="btn btn-sm btn-primary" data-step></button>
+    <button class="btn btn-sm" data-alloff>↺ Apagar todas</button></div>`;
   const stats = `<div class="rl-stats">
     <div class="rl-stat sent"><b data-out="eval">0</b><span>Peticiones</span></div>
     <div class="rl-stat block"><b data-out="blocked">0</b><span>Bloqueadas</span></div>
@@ -1992,6 +2002,28 @@ function mountWafPipelineScene(root) {
   const sync = () => {
     kit.qa("[data-tg]").forEach(b => b.classList.toggle("on", cfg.on[b.dataset.tg]));
     Object.entries(gateEl).forEach(([id, g]) => g.classList.toggle("off", !cfg.on[id]));
+    const nxt = [...GATES, RESP].find(g => !cfg.on[g.id]), step = kit.q("[data-step]");
+    step.disabled = !nxt;
+    step.textContent = nxt ? `⏭ Habilitar: ${nxt.icon} ${nxt.short}` : "✓ Todas las capas activas";
+  };
+  const allOff = () => {
+    ORDER.forEach(id => { cfg.on[id] = false; });
+    sync();
+    if (!S) return;
+    S.introUntil = S.now + 3;
+    kit.caption(`alloff${S.now}`, "🔓 Todas las capas del WAF están apagadas",
+      "Así se ve tu aplicación sin protección: todo lo que llega desde Internet, legítimo o malicioso, alcanza tu origen. Habilita las capas una por una con <b>⏭ Habilitar</b>.");
+  };
+  // Al habilitar una capa, su ataque es la siguiente petición para que se vea cómo lo detiene
+  const enable = id => {
+    cfg.on[id] = true;
+    sync();
+    const demo = SEQ.find(r => id === "resp" ? r.resp : r.catch === id);
+    S.deck = S.deck.filter(r => r !== demo);
+    S.deck.push(demo);
+    S.introUntil = S.now + 3.5;
+    S.nextSpawn = Math.max(S.nextSpawn, S.now + 1.2);
+    kit.caption(`on-${id}-${S.now}`, INTRO[id][0], INTRO[id][1]);
   };
   const bump = id => { S.hits[id]++; gateEl[id].querySelector(".sc-pg-c").textContent = `×${S.hits[id]}`; };
   const next = () => {
@@ -2003,7 +2035,7 @@ function mountWafPipelineScene(root) {
   const go = (p, pts, t) => Object.assign(p, { path: pts, t0: t, dur: len(pts) / SPEED, checked: new Set() });
 
   const reset = () => {
-    S = { cur: null, n: 0, eval: 0, blocked: 0, origin: 0, fixed: 0, nextSpawn: 0.4, deck: [], first: false,
+    S = { cur: null, n: 0, eval: 0, blocked: 0, origin: 0, fixed: 0, nextSpawn: 0.4, deck: [], first: false, now: 0, introUntil: 0,
       hits: { custom: 0, rate: 0, managed: 0, owasp: 0, resp: 0 } };
     ["eval", "blocked", "origin", "fixed"].forEach(k => kit.out(k, 0));
     Object.values(gateEl).forEach(g => { g.querySelector(".sc-pg-c").textContent = "×0"; g.classList.remove("scan", "hit", "pass"); });
@@ -2011,7 +2043,7 @@ function mountWafPipelineScene(root) {
     originS.textContent = "";
     setVerdict("ok", "ESPERANDO PETICIÓN");
     kit.log("Escuchando eventos del WAF…", "hint");
-    sync();
+    allOff();
   };
 
   const spawn = t => {
@@ -2024,7 +2056,7 @@ function mountWafPipelineScene(root) {
     kit.out("eval", S.eval);
     Object.values(gateEl).forEach(g => g.classList.remove("hit", "pass"));
     setVerdict("near", `${r.icon} ${r.who.toUpperCase()}`);
-    kit.caption(`s${r.n}`, `${r.icon} Petición #${r.n}: ${r.who}`,
+    if (S.now >= S.introUntil) kit.caption(`s${r.n}`, `${r.icon} Petición #${r.n}: ${r.who}`,
       `<code>${esc(r.q)}</code><br>Recorre las capas del WAF en el orden en que Cloudflare las ejecuta. La primera que coincide decide.`);
   };
 
@@ -2057,6 +2089,7 @@ function mountWafPipelineScene(root) {
   };
 
   const tick = (t, dt) => {
+    S.now = t;
     if (!S.cur && t >= S.nextSpawn) spawn(t);
     const p = S.cur;
     if (!p) return;
@@ -2122,10 +2155,11 @@ function mountWafPipelineScene(root) {
   };
 
   root.addEventListener("click", e => {
+    if (e.target.closest("[data-alloff]")) return allOff();
+    if (e.target.closest("[data-step]")) { const nxt = ORDER.find(id => !cfg.on[id]); return nxt && enable(nxt); }
     const b = e.target.closest("[data-tg]");
     if (!b) return;
-    cfg.on[b.dataset.tg] = !cfg.on[b.dataset.tg];
-    sync();
+    if (cfg.on[b.dataset.tg]) { cfg.on[b.dataset.tg] = false; sync(); } else enable(b.dataset.tg);
   });
 
   return runScene(root, kit, { reset, tick });

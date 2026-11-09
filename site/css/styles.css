@@ -242,6 +242,7 @@ body {
   color: #0B0B0F;
 }
 .btn-primary:hover { box-shadow: 0 0 18px rgba(246,130,31,0.45); }
+.btn:disabled { opacity: 0.55; cursor: default; box-shadow: none; }
 .btn-ghost { background: transparent; }
 .btn-sm { padding: 5px 10px; font-size: 12px; }
 
