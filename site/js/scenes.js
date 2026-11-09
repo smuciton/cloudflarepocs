@@ -1983,7 +1983,6 @@ function mountWafPipelineScene(root) {
   });
   const controls = `<div class="rl-controls sc-seg"><span class="sc-seg-l">Capas activas</span>
     ${[...GATES, RESP].map(g => `<button class="btn btn-sm" data-tg="${g.id}">${g.icon} ${g.short}</button>`).join("")}
-    <button class="btn btn-sm btn-primary" data-step></button>
     <button class="btn btn-sm" data-alloff>↺ Apagar todas</button></div>`;
   const stats = `<div class="rl-stats">
     <div class="rl-stat sent"><b data-out="eval">0</b><span>Peticiones</span></div>
@@ -2002,9 +2001,6 @@ function mountWafPipelineScene(root) {
   const sync = () => {
     kit.qa("[data-tg]").forEach(b => b.classList.toggle("on", cfg.on[b.dataset.tg]));
     Object.entries(gateEl).forEach(([id, g]) => g.classList.toggle("off", !cfg.on[id]));
-    const nxt = [...GATES, RESP].find(g => !cfg.on[g.id]), step = kit.q("[data-step]");
-    step.disabled = !nxt;
-    step.textContent = nxt ? `⏭ Habilitar: ${nxt.icon} ${nxt.short}` : "✓ Todas las capas activas";
   };
   const allOff = () => {
     ORDER.forEach(id => { cfg.on[id] = false; });
@@ -2012,7 +2008,7 @@ function mountWafPipelineScene(root) {
     if (!S) return;
     S.introUntil = S.now + 3;
     kit.caption(`alloff${S.now}`, "🔓 Todas las capas del WAF están apagadas",
-      "Así se ve tu aplicación sin protección: todo lo que llega desde Internet, legítimo o malicioso, alcanza tu origen. Habilita las capas una por una con <b>⏭ Habilitar</b>.");
+      "Así se ve tu aplicación sin protección: todo lo que llega desde Internet, legítimo o malicioso, alcanza tu origen. Habilita las capas una por una con sus botones.");
   };
   // Al habilitar una capa, su ataque es la siguiente petición para que se vea cómo lo detiene
   const enable = id => {
@@ -2156,7 +2152,6 @@ function mountWafPipelineScene(root) {
 
   root.addEventListener("click", e => {
     if (e.target.closest("[data-alloff]")) return allOff();
-    if (e.target.closest("[data-step]")) { const nxt = ORDER.find(id => !cfg.on[id]); return nxt && enable(nxt); }
     const b = e.target.closest("[data-tg]");
     if (!b) return;
     if (cfg.on[b.dataset.tg]) { cfg.on[b.dataset.tg] = false; sync(); } else enable(b.dataset.tg);
