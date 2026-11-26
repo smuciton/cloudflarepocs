@@ -961,7 +961,7 @@ function mountResponseScene(root) {
       cap: ["✅ La app entiende el bloqueo", "Recibe JSON con el formato de tu API, lo interpreta y muestra un mensaje útil. Puedes tener una respuesta JSON para /api y otra HTML para la web."]
     }
   };
-  const cfg = { mode: "headers", client: "browser", custom: false, auto: true, combo: 0 };
+  const cfg = { mode: "headers", client: "browser", custom: false, auto: false, combo: 0 };
   const lineY = i => 106 + i * 22;
 
   const svg = sceneFrame({
@@ -1014,7 +1014,7 @@ function mountResponseScene(root) {
     <div class="rl-controls sc-seg"><span class="sc-seg-l">Response Rule</span>
       <button class="btn btn-sm" data-custom="false">Desactivada</button>
       <button class="btn btn-sm" data-custom="true">Activada</button>
-      <label class="sc-check"><input type="checkbox" data-auto checked> Comparar automáticamente</label>
+      <label class="sc-check"><input type="checkbox" data-auto> Comparar automáticamente</label>
     </div>`;
 
   const kit = sceneKit(root, { svg, controls });
@@ -1171,7 +1171,7 @@ function mountResponseScene(root) {
   ];
 
   const reset = () => {
-    Object.assign(cfg, { mode: "headers", auto: true, combo: 0 });
+    Object.assign(cfg, { mode: "headers", auto: false, combo: 0 });
     [cfg.client, cfg.custom] = COMBOS.headers[0];
     S.origin = 0;
     originN.textContent = "0";
