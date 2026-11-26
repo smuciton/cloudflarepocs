@@ -91,7 +91,7 @@ function addSceneChrome(root, scene, title) {
 
 function mountRateLimitScene(root) {
   const NS = "http://www.w3.org/2000/svg";
-  const cfg = { threshold: 12, window: 6, timeout: 8, rate: 3, userRate: 0.45 };
+  const cfg = { threshold: 12, window: 6, timeout: 8, rate: 2, userRate: 0.45 };
   const IP = { atk: "203.0.113.7", usr: "198.51.100.4" };
   const PATH = {
     usr: [[98, 120], [240, 168]],
